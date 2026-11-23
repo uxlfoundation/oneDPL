@@ -26,7 +26,7 @@
 #    include "support/utils_sycl.h"
 #endif
 
-#include <algorithm>   // std::copy_n, std::fill, std::min, std::max
+#include <algorithm>   // std::copy_n, std::fill, std::find, std::min, std::max
 #include <cstddef>     // std::size_t, std::nullptr_t
 #include <cstdint>     // std::int16_t, std::int64_t, std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t
 #include <functional>  // std::plus, std::multiplies, std::bit_xor, std::logical_and
@@ -655,12 +655,72 @@ test_buffer()
     }
 }
 
+// On a GPU with arithmetic types, the elements are converted to the accumulator type before the operation, also where
+// two elements are reduced first: a 64-bit sum of 32-bit values near the maximum does not wrap, and a double sum of
+// float values does not round. The other implementations may reduce two elements in the input type, as std::reduce may.
+// A long segment in the work-group per segment path (n = 10000) and pieces in the other path (n = 2^20); through USM
+// pointers (vector loads) and a sycl::buffer (element loads)
+template <typename KernelName, typename T, typename Acc>
+void
+test_accumulator_type_first(Acc init, T big, T small)
+{
+    using BufferKernelName = TestUtils::unique_kernel_name<KernelName, 1>;
+
+    auto policy = TestUtils::get_dpcpp_test_policy();
+    sycl::queue q = policy.queue();
+    const sycl::device device = q.get_device();
+    const std::vector<std::size_t> sub_group_sizes = device.get_info<sycl::info::device::sub_group_sizes>();
+    if (!device.is_gpu() || std::find(sub_group_sizes.begin(), sub_group_sizes.end(), 32) == sub_group_sizes.end())
+        return;
+
+    std::mt19937 gen(42);
+    for (std::size_t n : {std::size_t(10000), std::size_t(1) << 20})
+    {
+        std::vector<T> in(n);
+        for (std::size_t i = 0; i < n; ++i)
+            in[i] = (i * 7919) % 3 == 0 ? small : big;
+        for (segments kind : {segments::one, segments::equal, segments::mixed})
+        {
+            std::vector<int> offsets = make_offsets<int>(kind, n, gen);
+            const int num_segments = offsets.size() - 1;
+            std::vector<Acc> expected(num_segments), result(num_segments);
+            reduce_by_segment_offsets_serial(in.begin(), in.end(), offsets.begin(), num_segments, init, std::plus<>{},
+                                             expected.begin());
+
+            TestUtils::usm_data_transfer<sycl::usm::alloc::device, T> in_usm(q, in.begin(), in.end());
+            TestUtils::usm_data_transfer<sycl::usm::alloc::device, int> offsets_usm(q, offsets.begin(), offsets.end());
+            TestUtils::usm_data_transfer<sycl::usm::alloc::device, Acc> out_usm(q, num_segments);
+            oneapi::dpl::experimental::reduce_by_segment(CLONE_TEST_POLICY_NAME(policy, KernelName), in_usm.get_data(),
+                                                         in_usm.get_data() + n, out_usm.get_data(), num_segments,
+                                                         offsets_usm.get_data(), init, std::plus<>{});
+            out_usm.retrieve_data(result.begin());
+            EXPECT_EQ_N(expected.begin(), result.begin(), num_segments,
+                        "wrong result from reduce_by_segment with USM and a wider accumulator");
+
+            std::fill(result.begin(), result.end(), Acc{});
+            {
+                sycl::buffer<T> in_buf(in.data(), in.size());
+                sycl::buffer<int> offsets_buf(offsets.data(), offsets.size());
+                sycl::buffer<Acc> out_buf(result.data(), result.size());
+                oneapi::dpl::experimental::reduce_by_segment(
+                    CLONE_TEST_POLICY_NAME(policy, BufferKernelName),
+                    oneapi::dpl::begin(in_buf), oneapi::dpl::end(in_buf), oneapi::dpl::begin(out_buf), num_segments,
+                    oneapi::dpl::begin(offsets_buf), init, std::plus<>{});
+            }
+            EXPECT_EQ_N(expected.begin(), result.begin(), num_segments,
+                        "wrong result from reduce_by_segment with sycl::buffer and a wider accumulator");
+        }
+    }
+}
+
 class KernelNameUSM;
 class KernelNameBuffer;
 class KernelNameCounting;
 class KernelNameNarrowCounting;
 class KernelNameUSMVectorEdges;
 class KernelNameSmallTypes;
+class KernelNameAccumulator64;
+class KernelNameAccumulatorDouble;
 #endif // TEST_DPCPP_BACKEND_PRESENT
 
 // Counting iterators help cover input with specific difference types.
@@ -833,6 +893,10 @@ main()
     test_usm_vector_edges<sycl::usm::alloc::device, int, KernelNameUSMVectorEdges>();
     test_usm_vector_edges<sycl::usm::alloc::device, std::int64_t, KernelNameUSMVectorEdges>();
     test_buffer<KernelNameBuffer>();
+    // Pairs of values near 2^32 wrap in 32 bits; pairs of 2^24 and 1 round in float
+    test_accumulator_type_first<KernelNameAccumulator64>(std::uint64_t{1}, std::uint32_t{4'000'000'000u},
+                                                         std::uint32_t{3'000'000'000u});
+    test_accumulator_type_first<KernelNameAccumulatorDouble>(0.5, 16777216.f, 1.f);
 #endif
 
     return done();

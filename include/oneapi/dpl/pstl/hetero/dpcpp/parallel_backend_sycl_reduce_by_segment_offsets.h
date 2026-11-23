@@ -300,7 +300,9 @@ struct __segmented_reduce_chunk_brick
 
         // The head starts from __init; other chunks start from op(first two elements) as std::reduce does: an
         // accumulator is never made from a lone element, which may mean something else to the operation (such a chunk
-        // has >= 64 elements)
+        // has >= 64 elements). Unlike the arithmetic types of the GPU paths (__reduce_pair), the elements are not
+        // converted to the accumulator type first: this path also takes the CPU devices and any types, whose
+        // accumulator may not be constructible from an element
         _Acc __start = __init;
         if (!__is_head)
             __start = std::invoke(__binary_op, __input[__chunk_begin], __input[__chunk_begin + 1]);
@@ -462,6 +464,15 @@ struct __segmented_reduce_flat_local<true, _Acc, _Size>
     }
 };
 
+// Op on two values converted to the accumulator type first, so that the op does not work in a narrower input type;
+// the device paths of arithmetic types take every op through it
+template <typename _Acc, typename _T1, typename _T2, typename _BinaryOperation>
+_Acc
+__reduce_pair(_T1 __a, _T2 __b, _BinaryOperation __binary_op)
+{
+    return _Acc(std::invoke(__binary_op, _Acc(__a), _Acc(__b)));
+}
+
 // Combines the first __active lanes of a sub-group onto lane 0: sub-group reduce if the op has a known identity (the
 // other lanes give it), else a tree of compile-time shifts, as run-time shifts reach other lanes' registers indirectly.
 // Every lane passes a constructed value; those of the other lanes are not used
@@ -483,7 +494,7 @@ __reduce_active_lanes(const _SubGroup __sg, _Acc __acc, const std::uint32_t __ac
             {
                 const _Acc __other = sycl::shift_group_left(__sg, __acc, __shift);
                 if (__lane + __shift < __active)
-                    __acc = std::invoke(__binary_op, __acc, __other);
+                    __acc = __reduce_pair<_Acc>(__acc, __other, __binary_op);
             }
         };
 
@@ -503,7 +514,8 @@ template <typename _Acc, typename _T, typename _BinaryOperation>
 _Acc
 __reduce_four(_T __a, _T __b, _T __c, _T __d, _BinaryOperation __binary_op)
 {
-    return std::invoke(__binary_op, _Acc(std::invoke(__binary_op, __a, __b)), _Acc(std::invoke(__binary_op, __c, __d)));
+    return __reduce_pair<_Acc>(__reduce_pair<_Acc>(__a, __b, __binary_op), __reduce_pair<_Acc>(__c, __d, __binary_op),
+                               __binary_op);
 }
 
 // Folds __load(__index) into __acc for __index from its value below __end by __stride: eight values an op while they
@@ -518,21 +530,21 @@ __fold_strided(_Acc& __acc, std::uint32_t __index, const std::uint32_t __end, co
                                    __load(__i + 3 * __stride), __binary_op);
     };
     for (; __index + 7 * __stride < __end; __index += 8 * __stride)
-        __acc = std::invoke(__binary_op, __acc,
-                            _Acc(std::invoke(__binary_op, __four(__index), __four(__index + 4 * __stride))));
+        __acc = __reduce_pair<_Acc>(
+            __acc, __reduce_pair<_Acc>(__four(__index), __four(__index + 4 * __stride), __binary_op), __binary_op);
     if (__index + 3 * __stride < __end)
     {
-        __acc = std::invoke(__binary_op, __acc, __four(__index));
+        __acc = __reduce_pair<_Acc>(__acc, __four(__index), __binary_op);
         __index += 4 * __stride;
     }
     if (__index + __stride < __end)
     {
-        __acc = std::invoke(__binary_op, __acc,
-                            _Acc(std::invoke(__binary_op, __load(__index), __load(__index + __stride))));
+        __acc = __reduce_pair<_Acc>(
+            __acc, __reduce_pair<_Acc>(__load(__index), __load(__index + __stride), __binary_op), __binary_op);
         __index += 2 * __stride;
     }
     if (__index < __end)
-        __acc = std::invoke(__binary_op, __acc, __load(__index));
+        __acc = __reduce_pair<_Acc>(__acc, __load(__index), __binary_op);
 }
 
 template <typename _Acc, typename _KernelName, typename _GroupKernelName, typename _TailKernelName,
@@ -742,7 +754,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                                                                   sycl::access::decorated::no>(
                                              __piece_data + __aligned_first + __vector_width * __vector_index));
                         if constexpr (__vector_width == 2)
-                            return _Acc(std::invoke(__binary_op, _T(__values[0]), _T(__values[1])));
+                            return __reduce_pair<_Acc>(_T(__values[0]), _T(__values[1]), __binary_op);
                         else
                             return __reduce_four<_Acc>(_T(__values[0]), _T(__values[1]), _T(__values[2]),
                                                        _T(__values[3]), __binary_op);
@@ -760,9 +772,9 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
                     if (__lane == 0)
                     {
                         for (std::uint32_t __i = __first; __i < __aligned_first; ++__i)
-                            __acc.__v = std::invoke(__binary_op, __acc.__v, __piece_data[__i]);
+                            __acc.__v = __reduce_pair<_Acc>(__acc.__v, __piece_data[__i], __binary_op);
                         for (std::uint32_t __i = __aligned_first + __vector_width * __num_vectors; __i < __last; ++__i)
-                            __acc.__v = std::invoke(__binary_op, __acc.__v, __piece_data[__i]);
+                            __acc.__v = __reduce_pair<_Acc>(__acc.__v, __piece_data[__i], __binary_op);
                     }
                 }
             }
@@ -772,8 +784,8 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         {
             const std::uint32_t __i = __first + __lane;
 
-            __acc.__setup(std::invoke(__binary_op, __element(__input, __piece_begin, __i),
-                                      __element(__input, __piece_begin, __i + __active)));
+            __acc.__setup(__reduce_pair<_Acc>(__element(__input, __piece_begin, __i),
+                                              __element(__input, __piece_begin, __i + __active), __binary_op));
 
             // Each lane folds its remaining interleaved elements, stepping by the number of active lanes.
             __fold_strided(
@@ -788,7 +800,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
 
         // A range of one element (no active lane) is that element; a segment start adds the init
         const _Acc __total = __active > 0 ? __acc.__v : _Acc(__element(__input, __piece_begin, __first));
-        return __is_first ? _Acc(std::invoke(__binary_op, __init, __total)) : __total;
+        return __is_first ? __reduce_pair<_Acc>(__init, __total, __binary_op) : __total;
     }
 
     // Run of very short segments from __first_segment, a lane each, up to the first longer one: reduced from
@@ -823,7 +835,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             const std::uint32_t __begin_in_piece = std::uint32_t(__lane_begin - __piece_begin);
             const std::uint32_t __end_in_piece = std::uint32_t(__lane_end - __piece_begin);
 
-            _Acc __acc = std::invoke(__binary_op, __init, __element(__input, __piece_begin, __begin_in_piece));
+            _Acc __acc = __reduce_pair<_Acc>(__init, __element(__input, __piece_begin, __begin_in_piece), __binary_op);
 
             // A tiny segment is reduced by one lane over contiguous elements, hence stride 1.
             __fold_strided(
@@ -1007,7 +1019,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
             {
                 __state = __local.__loc_head_states_acc[__piece];
                 if (__state != __segmented_reduce_head_state::__none)
-                    __acc = std::invoke(__binary_op, __acc, __local.__loc_heads_tails_acc[__piece]);
+                    __acc = __reduce_pair<_Acc>(__acc, __local.__loc_heads_tails_acc[__piece], __binary_op);
             }
             return __state;
         };
@@ -1080,7 +1092,7 @@ struct __segmented_reduce_flat_submitter<_Acc, __internal::__optional_kernel_nam
         __acc.__v =
             __reduce_active_lanes<_Acc>(__sg, __acc.__v, std::min(__heads_count, __sub_group_size), __binary_op);
         if (__lane == 0)
-            __result[__tail_segment] = _Acc(std::invoke(__binary_op, __tail, __acc.__v));
+            __result[__tail_segment] = __reduce_pair<_Acc>(__tail, __acc.__v, __binary_op);
     }
 };
 
@@ -1213,7 +1225,7 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                     // element, skipped by the combinations below
                     const std::uint32_t __length = __end - __begin;
                     const std::uint32_t __first = __local_id < __length ? __local_id : 0;
-                    _Acc __acc = __local_id == 0 ? _Acc(std::invoke(__binary_op, __init, __input[__begin]))
+                    _Acc __acc = __local_id == 0 ? __reduce_pair<_Acc>(__init, __input[__begin], __binary_op)
                                                  : _Acc(__input[__begin + __first]);
                     // Up to two work-groups long, a work-item takes at most one more element: a plain step is cheaper
                     // than the fold's branches
@@ -1222,7 +1234,8 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
                             __acc, __local_id + __work_group_size, __length, __work_group_size,
                             [&](std::uint32_t __i) { return __input[__begin + __i]; }, __binary_op);
                     else if (__local_id + __work_group_size < __length)
-                        __acc = std::invoke(__binary_op, __acc, __input[__begin + __local_id + __work_group_size]);
+                        __acc =
+                            __reduce_pair<_Acc>(__acc, __input[__begin + __local_id + __work_group_size], __binary_op);
 
                     const auto __sg = __item.get_sub_group();
                     const std::uint32_t __sg_id = __sg.get_group_linear_id();
