@@ -32,8 +32,7 @@ New Features
 - Added experimental ``reduce_by_segment`` overloads in ``namespace oneapi::dpl::experimental``
   with segments defined by an array of ``num_segments + 1`` offsets instead of keys.
   The binary operation is optional and defaults to ``std::plus<>``; the initial value is required.
-  The algorithm supports device execution policies and all host execution policies;
-  with host policies, the segments are currently reduced serially.
+  The algorithm supports device execution policies and all host execution policies.
   The ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` feature macro is defined to ``202611L``.
 - Improved performance of ``find_first_of`` algorithm with ``unseq`` and ``par_unseq`` policies
   when the second sequence is longer than approximately 1 MB.
@@ -64,6 +63,8 @@ New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - ``reduce_by_segment`` with segments defined by offsets is not supported with FPGA device policies,
   which are deprecated.
+- ``reduce_by_segment`` with segments defined by offsets has only a serial implementation
+  for host execution policies: ``par`` and ``par_unseq`` policies reduce the segments one after another.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
