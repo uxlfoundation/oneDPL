@@ -29,6 +29,12 @@ New Features
   The improvement is more pronounced on CPUs with a higher core count.
 - Added support for Intel® GPU D270 to the experimental ``kt::gpu::radix_sort`` and
   ``kt::gpu::radix_sort_by_key`` algorithms.
+- Added experimental ``reduce_by_segment`` overloads in ``namespace oneapi::dpl::experimental``
+  with segments defined by an array of ``num_segments + 1`` offsets instead of keys.
+  The binary operation is optional and defaults to ``std::plus<>``; the initial value is required.
+  The ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` feature macro is defined to ``202611L``.
+- Improved performance of ``find_first_of`` algorithm with ``unseq`` and ``par_unseq`` policies
+  when the second sequence is longer than approximately 1 MB.
 
 Fixed Issues
 ------------
@@ -38,6 +44,17 @@ Fixed Issues
 - Fixed ``adjacent_difference`` converting the result of the default ``operator-`` to the input value type
   before writing it to the output sequence.
 - Fixed ``search_n`` converting the searched value to the input value type before comparison.
+- Fixed incorrect results of ``find_first_of`` algorithm, including its range-based variant,
+  with ``unseq`` and ``par_unseq`` policies: only the first element of the first sequence was compared,
+  the predicate was called with swapped arguments, and a match that was not the leftmost one could be returned.
+- Fixed compilation errors in ``min_element``, ``max_element``, and ``minmax_element`` algorithms,
+  including their range-based variants, as well as in range-based ``min``, ``max``, and ``minmax`` algorithms,
+  with ``unseq`` and ``par_unseq`` policies, for value types that are not default-constructible,
+  not copyable (for example, move-only), or not constructible from or assignable from the reference type
+  of the input sequence.
+- Fixed a compilation error in algorithms with device policies when the element type of an input sequence
+  has an overloaded or deleted unary ``operator&``.
+- Fixed ``-Wunknown-pragmas`` warnings issued by GCC when compiling oneDPL headers.
 
 Known Issues and Limitations
 ----------------------------
