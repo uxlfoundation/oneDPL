@@ -19,6 +19,36 @@ reduction over them. They have nearly uniform rows (finite element meshes), heav
 and empty rows (isolated vertices, structurally singular matrices). The other sources are represented by the synthetic
 regimes.
 
+For example, the matrix
+
+```
+    | 1 0 2 0 |
+A = | 0 0 0 0 |
+    | 3 4 0 5 |
+```
+
+is stored in the CSR form as three arrays: the nonzeros row by row, their columns, and the offsets at which the rows
+start:
+
+```
+values      = [1, 2, 3, 4, 5]
+columns     = [0, 2, 0, 1, 3]
+row_offsets = [0, 2, 2, 5]    // row r is values[row_offsets[r] .. row_offsets[r + 1])
+```
+
+The row sums are the segmented reduction of `values` with `row_offsets` as the offsets. The segment lengths are the
+row lengths 2, 0 and 3, and the empty row gets the init value:
+
+```cpp
+oneapi::dpl::experimental::reduce_by_segment(policy, values, values + 5, sums, 3, row_offsets, 0);
+// sums = [1 + 2, 0, 3 + 4 + 5] = [3, 0, 12]
+```
+
+A sparse matrix-vector product `y = A * x` reduces the products `values[k] * x[columns[k]]` over the same segments,
+and in a graph stored in this form a row is the neighborhood of a vertex. A benchmark needs only the row offsets: they
+define the segments, while the values can be generated. The data collections store the matrices as lists of entries
+(the Matrix Market coordinate format); the conversion described below builds the row offsets from them.
+
 This document reviews how the literature and other libraries generate inputs for segmented reductions and the closely
 related sparse matrix-vector multiplication (SpMV), and proposes a benchmark design for oneDPL that combines
 parameterized synthetic distributions with a fixed set of real matrices and graphs.
