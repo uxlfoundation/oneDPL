@@ -32,8 +32,8 @@ New Features
 - Added ``oneapi::dpl::experimental::reduce_by_segment`` overloads with segment boundaries defined
   by an array of indices. Added ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` feature test macro
   to check availability of these overloads.
-- Improved performance of ``find_first_of`` algorithm with ``unseq`` and ``par_unseq`` policies
-  when the second sequence is longer than approximately 1 MB.
+- Improved performance of ``find_first_of`` with ``unseq`` and ``par_unseq`` policies
+  when the second input sequence has ~1M elements or more.
 
 Fixed Issues
 ------------
