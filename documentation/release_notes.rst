@@ -21,7 +21,9 @@ New Features
   ``stable_sort_by_key``, ``partial_sort``, and ``partial_sort_copy`` algorithms
   when using the oneTBB backend with ``par`` and ``par_unseq`` execution policies.
   The improvement is more pronounced on CPUs with a higher core count.
- 
+- Added support for Intel® GPU D270 to the experimental ``kt::gpu::radix_sort`` and
+  ``kt::gpu::radix_sort_by_key`` algorithms.
+
 Fixed Issues
 ------------
 
