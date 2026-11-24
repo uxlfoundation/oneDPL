@@ -13,7 +13,15 @@ New in 2022.15.0
 New Features
 ------------
 - Improved performance of ``remove``, ``remove_if``, and ``unique`` algorithms when used with device policies.
-
+- Improved performance of over 50 algorithms
+  (including ``for_each``, ``transform``, ``copy``, ``replace``, ``find``, ``equal``, and ``any_of``)
+  when using the OpenMP backend with ``par`` and ``par_unseq`` execution policies.
+  This improvement applies to algorithms called outside of an existing OpenMP parallel region.
+- Improved performance of ``merge``, ``inplace_merge``, ``sort``, ``stable_sort``, ``sort_by_key``,
+  ``stable_sort_by_key``, ``partial_sort``, and ``partial_sort_copy`` algorithms
+  when using the oneTBB backend with ``par`` and ``par_unseq`` execution policies.
+  The improvement is more pronounced on CPUs with a higher core count.
+ 
 Fixed Issues
 ------------
 
