@@ -29,11 +29,9 @@ New Features
   The improvement is more pronounced on CPUs with a higher core count.
 - Added support for Intel® GPU D270 to the experimental ``kt::gpu::radix_sort`` and
   ``kt::gpu::radix_sort_by_key`` algorithms.
-- Added experimental ``reduce_by_segment`` overloads in ``namespace oneapi::dpl::experimental``
-  with segments defined by an array of ``num_segments + 1`` offsets instead of keys.
-  The binary operation is optional and defaults to ``std::plus<>``; the initial value is required.
-  The algorithm supports device execution policies and all host execution policies.
-  The ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` feature macro is defined to ``202611L``.
+- Added ``oneapi::dpl::experimental::reduce_by_segment`` overloads with segment boundaries defined
+  by an array of indices. Added ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` feature test macro
+  to check availability of these overloads.
 - Improved performance of ``find_first_of`` algorithm with ``unseq`` and ``par_unseq`` policies
   when the second sequence is longer than approximately 1 MB.
 
