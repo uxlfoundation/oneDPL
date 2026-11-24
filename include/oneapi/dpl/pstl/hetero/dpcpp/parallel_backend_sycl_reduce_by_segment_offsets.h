@@ -10,7 +10,7 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 
-#include <algorithm>   // std::min, std::max, std::clamp, std::find
+#include <algorithm>   // std::min, std::max, std::clamp
 #include <cassert>     // assert
 #include <cmath>       // std::sqrt
 #include <cstddef>     // std::size_t
@@ -20,10 +20,10 @@
 #include <tuple>       // std::get
 #include <type_traits> // std::integral_constant, std::conditional_t, std::enable_if_t, std::is_*_v, ...
 #include <utility>     // std::move, std::forward, std::declval, std::pair
-#include <vector>      // std::vector
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl.h"
+#include "parallel_backend_sycl_utils.h"
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
 
@@ -1331,7 +1331,7 @@ struct __parallel_reduce_by_segment_offsets
                                               _OffsetRange& __offsets, _OutRange& __result, const _Size __n,
                                               const _Size __m, const _Acc& __init, _BinaryOperation __binary_op)
     {
-        if (__has_device_scope_atomics(__device))
+        if (oneapi::dpl::__internal::__has_device_scope_atomics(__device))
             return false;
 
         // Then the longest length is not reported: init for the empty segments, all the others in chunks
@@ -1388,20 +1388,6 @@ struct __parallel_reduce_by_segment_offsets
                                               _FlatTuning>{__init, __binary_op}(__q, __input, __offsets, __result, __n,
                                                                                 __m);
         }
-    }
-
-    // Whether a device supports the atomics of the device scope, which SYCL does not require
-    static bool
-    __has_device_scope_atomics([[maybe_unused]] const sycl::device& __device)
-    {
-#if _ONEDPL_SYCL2020_ATOMIC_MEMORY_SCOPE_CAPABILITIES_BROKEN
-        // The capabilities cannot be queried, so conservatively assume no support
-        return false;
-#else
-        const std::vector<sycl::memory_scope> __scopes =
-            __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
-        return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
-#endif
     }
 
     // Short segments, a work-item each; returns the longest long-segment length, 0 if none
