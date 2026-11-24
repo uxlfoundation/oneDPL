@@ -104,6 +104,7 @@
 // SYCL 2020 section 4.17.7 requires sycl::mul_hi, but ACPP does not provide it.
 #define _ONEDPL_SYCL2020_MUL_HI_BROKEN (_ONEDPL_ACPP_VERSION != 0)
 // SYCL 2020 section 4.6.4.4 requires info::device::atomic_memory_scope_capabilities, but ACPP does not provide it.
+// See https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2310
 #define _ONEDPL_SYCL2020_ATOMIC_MEMORY_SCOPE_CAPABILITIES_BROKEN (_ONEDPL_ACPP_VERSION != 0)
 // There are issues with some accessor constructors prior to DPC++ 2023.1 and with 2023.2.
 #define _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN                                                           \

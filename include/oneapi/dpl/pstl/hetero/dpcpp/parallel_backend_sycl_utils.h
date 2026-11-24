@@ -115,8 +115,9 @@ inline bool
 __has_device_scope_atomics([[maybe_unused]] sycl::device __device)
 {
 #if _ONEDPL_SYCL2020_ATOMIC_MEMORY_SCOPE_CAPABILITIES_BROKEN
-    // The capabilities cannot be queried, so conservatively assume no support
-    return false;
+    // AdaptiveCPP supports global atomics, but the check itself is broken
+    // Enable them assuming almost all devices support global atomics
+    return true;
 #else
     const std::vector<sycl::memory_scope> __scopes =
         __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
