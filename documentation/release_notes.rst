@@ -60,6 +60,10 @@ Fixed Issues
 
 Known Issues and Limitations
 ----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+- ``reduce_by_segment`` with segments defined by offsets is not supported with FPGA device policies.
+
 Existing Issues
 ^^^^^^^^^^^^^^^
 See oneDPL Guide for other `restrictions and known limitations`_.
