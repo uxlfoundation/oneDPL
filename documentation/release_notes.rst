@@ -12,6 +12,7 @@ New in 2022.15.0
 ================
 New Features
 ------------
+- Improved performance of ``remove``, ``remove_if``, and ``unique`` algorithms when used with device policies.
 
 Fixed Issues
 ------------
