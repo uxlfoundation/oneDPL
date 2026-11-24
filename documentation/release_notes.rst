@@ -58,8 +58,6 @@ Known Issues and Limitations
 ----------------------------
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
-- ``reduce_by_segment`` with segments defined by offsets is not supported with FPGA device policies,
-  which are deprecated.
 - ``experimental::reduce_by_segment`` executes serially with all standard-aligned execution policies.
 
 Existing Issues
