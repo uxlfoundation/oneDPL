@@ -12,12 +12,12 @@ The benchmarks used so far generate the segments synthetically: the lengths are 
 (e.g. 1..1024, 1..16, 2K..128K, 64K..256K, and a mixture of 95 % short and 5 % very long segments). Such regimes are
 easy to reason about, but they miss irregular shapes of real data. Offset-defined segments describe any ragged
 structure: ragged tensors, groups and clusters, rows of sparse matrices and neighborhoods of graph vertices, among the
-uses found in the [usage study](usage_pattern_study.md). Of these, sparse matrices and graphs are the only ones with
-public, well-documented collections of real data: in their compressed sparse row (CSR) form, the row offsets are
-exactly the offsets of this algorithm, and a row sum or a vertex degree computation is a segmented reduction over
-them. They have nearly uniform rows (finite element meshes), heavy-tailed rows (web and social graphs), and empty rows
-(isolated vertices, structurally singular matrices), so they serve here as examples of real irregular length
-distributions; the other sources are represented by the synthetic regimes.
+uses found in the [usage study](usage_pattern_study.md). Sparse matrices and graphs are well represented in real data
+collections and can serve as examples of real irregular length distributions: in their compressed sparse row (CSR) form,
+the row offsets are exactly the offsets of this algorithm, and a row sum or a vertex degree computation is a segmented
+reduction over them. They have nearly uniform rows (finite element meshes), heavy-tailed rows (web and social graphs),
+and empty rows (isolated vertices, structurally singular matrices). The other sources are represented by the synthetic
+regimes.
 
 This document reviews how the literature and other libraries generate inputs for segmented reductions and the closely
 related sparse matrix-vector multiplication (SpMV), and proposes a benchmark design for oneDPL that combines
