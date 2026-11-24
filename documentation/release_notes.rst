@@ -44,8 +44,7 @@ Fixed Issues
   before writing it to the output sequence.
 - Fixed ``search_n`` converting the searched value to the input value type before comparison.
 - Fixed incorrect results of ``find_first_of`` algorithm, including its range-based variant,
-  with ``unseq`` and ``par_unseq`` policies: only the first element of the first sequence was compared,
-  the predicate was called with swapped arguments, and a match that was not the leftmost one could be returned.
+  with ``unseq`` and ``par_unseq`` policies: the returned match might be not the leftmost one.
 - Fixed compilation errors in ``min_element``, ``max_element``, and ``minmax_element`` algorithms,
   including their range-based variants, as well as in range-based ``min``, ``max``, and ``minmax`` algorithms,
   with ``unseq`` and ``par_unseq`` policies, for value types that are not default-constructible,
