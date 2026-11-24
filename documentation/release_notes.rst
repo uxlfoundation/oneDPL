@@ -12,7 +12,13 @@ New in 2022.15.0
 ================
 New Features
 ------------
+- Added experimental ``batched_stable_sort`` and ``batched_stable_sort_by_key`` algorithms in the
+  ``oneapi::dpl::experimental::kt::gpu`` namespace, which independently sort each of a batch of equally sized,
+  contiguous segments in a single call. Work-group resident merge sort, work-group resident radix sort, and multi
+  work-group radix sort configurations are provided and selected at compile time.
 - Improved performance of ``remove``, ``remove_if``, and ``unique`` algorithms when used with device policies.
+- Improved performance of ``shift_left`` and ``shift_right`` algorithms with small shift values
+  when used with device policies.
 - Improved performance of over 50 algorithms
   (including ``for_each``, ``transform``, ``copy``, ``replace``, ``find``, ``equal``, and ``any_of``)
   when using the OpenMP backend with ``par`` and ``par_unseq`` execution policies.
@@ -26,6 +32,12 @@ New Features
 
 Fixed Issues
 ------------
+- Fixed incorrect results in the ``histogram`` algorithm with evenly divided bins when the bin bound type
+  differs from the input element type, when intermediate bin computations overflow for large bound ranges,
+  or when floating-point precision issues map an input element just below the upper bound past the last bin.
+- Fixed ``adjacent_difference`` converting the result of the default ``operator-`` to the input value type
+  before writing it to the output sequence.
+- Fixed ``search_n`` converting the searched value to the input value type before comparison.
 
 Known Issues and Limitations
 ----------------------------
