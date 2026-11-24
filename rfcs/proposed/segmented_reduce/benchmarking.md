@@ -75,7 +75,8 @@ a wide range of lengths but no skewed distributions and no empty segments.
 Williams et al. [2] selected 14 matrices with diverse row structures for SpMV on multicore platforms; Bell and
 Garland [1] adopted the same set for GPUs, and ModernGPU [6] uses it in its CSR SpMV benchmark.
 All of them (except a generated dense 2000 x 2000 matrix) come from the University of Florida, now SuiteSparse,
-Matrix Collection [4]:
+Matrix Collection [4]. In the terms of this algorithm, a row is a segment: "Rows" is the number of segments, "Nonzeros"
+is the input size, and "Row length" is the segment length, whose average is Nonzeros / Rows.
 
 | Matrix | Domain | Rows | Nonzeros | Row length: avg / max |
 |---|---|---|---|---|
@@ -97,6 +98,11 @@ Matrix Collection [4]:
 The counts are those of the CSR form, with symmetric matrices expanded to both triangles. Merrill and Garland [3]
 evaluate the merge-based SpMV of CUB on the whole collection, several thousand matrices, which removes the selection
 bias of a small set at the cost of benchmark time.
+
+For this proposal, the set matters as a collection of length distributions rather than of matrices. It has nearly
+uniform lengths, with the maximum close to the average (`dense2`, `conf5_4-8x8-05`, `mc2depi`, `consph`, `cant`), a
+moderate spread (`pdb1HYS`, `shipsec1`, `rma10`, `pwtk`), heavy tails, with the maximum far above the average
+(`mac_econ_fwd500`, `rail4284`, `scircuit`, `webbase-1M`), and a long run of empty segments (`cop20k_A`).
 
 ### Real graphs (SNAP)
 
