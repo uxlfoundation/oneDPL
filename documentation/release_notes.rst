@@ -45,11 +45,9 @@ Fixed Issues
 - Fixed ``search_n`` converting the searched value to the input value type before comparison.
 - Fixed incorrect results of ``find_first_of`` algorithm, including its range-based variant,
   with ``unseq`` and ``par_unseq`` policies: the returned match might be not the leftmost one.
-- Fixed compilation errors in ``min_element``, ``max_element``, and ``minmax_element`` algorithms,
-  including their range-based variants, as well as in range-based ``min``, ``max``, and ``minmax`` algorithms,
-  with ``unseq`` and ``par_unseq`` policies, for value types that are not default-constructible,
-  not copyable (for example, move-only), or not constructible from or assignable from the reference type
-  of the input sequence.
+- Removed requirements on the value type not mandated by the C++ standard from ``min_element``,
+  ``max_element``, and ``minmax_element`` algorithms, including their range-based variants,
+  and from range-based ``min``, ``max``, and ``minmax`` algorithms with ``unseq`` and ``par_unseq`` policies.
 - Fixed a compilation error in algorithms with device policies when the element type of an input sequence
   has an overloaded or deleted unary ``operator&``.
 - Fixed ``-Wunknown-pragmas`` warnings issued by GCC when compiling oneDPL headers.
