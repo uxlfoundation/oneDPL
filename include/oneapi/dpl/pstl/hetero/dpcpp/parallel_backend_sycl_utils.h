@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdint> // std::uint8_t
 #include <cassert>
+#include <vector>
 
 #include "sycl_defs.h"
 #include "execution_sycl_defs.h"
@@ -108,6 +109,20 @@ __supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
     const std::vector<std::size_t> __subgroup_sizes =
         __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
     return std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), __target_size) != __subgroup_sizes.end();
+}
+
+inline bool
+__has_device_scope_atomics([[maybe_unused]] sycl::device __device)
+{
+#if _ONEDPL_SYCL2020_ATOMIC_MEMORY_SCOPE_CAPABILITIES_BROKEN
+    // AdaptiveCPP supports global atomics, but the check itself is broken
+    // Enable them assuming almost all devices support global atomics
+    return true;
+#else
+    const std::vector<sycl::memory_scope> __scopes =
+        __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
+    return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
+#endif
 }
 
 //-----------------------------------------------------------------------------

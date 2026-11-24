@@ -17,6 +17,7 @@
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_HISTOGRAM_H
 
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <type_traits>
 
@@ -188,8 +189,9 @@ __accum_local_atomics_iter(const _ValueType& __x, const _HistAccessor& __wg_loca
     oneapi::dpl::__internal::__bin_idx_t __c = __func.get_bin(__x);
     if (__c >= 0)
     {
-        __dpl_sycl::__atomic_ref<_histo_value_type, _AddressSpace> __local_bin(
-            __wg_local_histogram[__c * __stride + __offset]);
+        // The addressed histogram is private to the work-group, so work-group scope is sufficient
+        sycl::atomic_ref<_histo_value_type, sycl::memory_order::relaxed, sycl::memory_scope::work_group, _AddressSpace>
+            __local_bin(__wg_local_histogram[__c * __stride + __offset]);
         ++__local_bin;
     }
 }
@@ -286,8 +288,9 @@ struct __histogram_general_local_atomics_submitter<__iters_per_work_item,
                         {
                             __merged += __local_histogram[__base + __s];
                         }
-                        __dpl_sycl::__atomic_ref<_bin_type, sycl::access::address_space::global_space> __global_bin(
-                            __bins[__bin]);
+                        sycl::atomic_ref<_bin_type, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                         sycl::access::address_space::global_space>
+                            __global_bin(__bins[__bin]);
                         __global_bin += __merged;
                     }
                 });
@@ -389,8 +392,9 @@ struct __histogram_general_private_global_atomics_submitter<__internal::__option
                     const std::size_t __offset = __wgroup_idx * __num_bins;
                     for (std::size_t __bin = __self_lidx; __bin < __num_bins; __bin += __work_group_size)
                     {
-                        __dpl_sycl::__atomic_ref<_bin_type, sycl::access::address_space::global_space> __global_bin(
-                            __bins[__bin]);
+                        sycl::atomic_ref<_bin_type, sycl::memory_order::relaxed, sycl::memory_scope::device,
+                                         sycl::access::address_space::global_space>
+                            __global_bin(__bins[__bin]);
                         __global_bin += __hacc_private[__offset + __bin];
                     }
                 });
@@ -490,6 +494,9 @@ __parallel_histogram(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
     using _CustomName = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
 
     sycl::queue __q_local = __exec.queue();
+
+    assert(oneapi::dpl::__internal::__has_device_scope_atomics(__q_local.get_device()) &&
+           "This device does not support sycl::memory_scope::device");
 
     if (oneapi::dpl::__ranges::__size(__input) < 1048576) // 2^20
     {
