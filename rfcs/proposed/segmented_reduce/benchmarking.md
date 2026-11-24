@@ -18,6 +18,7 @@ Table of contents:
   - [Preparation of the data, step by step](#preparation-of-the-data-step-by-step)
   - [Delivery of the data](#delivery-of-the-data)
   - [Metrics and reporting](#metrics-and-reporting)
+  - [Normalization of the times across devices](#normalization-of-the-times-across-devices)
   - [Prototype](#prototype)
 - [Open Questions](#open-questions)
 - [References](#references)
@@ -342,13 +343,62 @@ available from the University of Florida mirror (`https://www.cise.ufl.edu/resea
 
 For every regime and device the benchmark reports the median time, the effective bandwidth
 `(nnz * sizeof(value) + (m + 1) * sizeof(offset) + m * sizeof(result)) / time`, and the ratio to the key-based
-`reduce_by_segment` on the same segments. Comparisons with other libraries on different hardware, such as CUB, use the
-fraction of the measured peak memory bandwidth of each device instead of absolute times. A report shows, per device,
+`reduce_by_segment` on the same segments. Comparisons with other libraries on other hardware, such as CUB, are
+described in the next section. A report shows, per device,
 the average length sweep as a line chart, and the real data as charts of the ratio and of the bandwidth, sorted by the
 average row length, with the tables of all values.
 
 The key-based `reduce_by_segment` cannot express empty segments, so on inputs with empty rows it produces fewer results
 and is excluded from the comparison there.
+
+### Normalization of the times across devices
+
+oneDPL and CUB run on different GPUs. When we compare their raw times, we compare both the code and the GPU, and we
+cannot tell which of the two causes a difference.
+
+Why a normalization is needed:
+
+- For large inputs, the time is mostly the time to read the data from memory. A GPU with faster memory is faster with
+  any good code, so on large inputs the raw ratio mostly shows which GPU has faster memory.
+- For small inputs, the time is mostly the fixed cost of a call: starting the kernels and waiting for them. The speed of
+  the memory does not matter there.
+- To find where our code should be improved, the speed of the memory has to be removed from the comparison of large
+  inputs, while small inputs stay as they are.
+
+The options:
+
+| Option | How | Problem |
+|---|---|---|
+| Raw times | compare the times as measured | mixes the code and the GPU |
+| Peak bandwidth from the specification | divide by the bandwidth from the data sheet | GPUs reach very different shares of it; wrong for small inputs |
+| Measured bandwidth for the whole time | scale the whole time by the ratio of the measured bandwidths | also scales the fixed cost, so it is wrong for small inputs |
+| Efficiency | compare `R(B) / T` of each library, each on its GPU | a share, not a time |
+| Normalization of the transfer only | replace the read time on our GPU with the read time on the other GPU, keep the fixed cost | the cost of one kernel start differs between the drivers and stays in the comparison |
+| Normalization of the ideal call | replace the time of an ideal call on our GPU with that on the other GPU (below) | an estimate, see the notes |
+
+The proposal is to show two numbers for every case: the raw time, and the time normalized by the ideal call:
+
+```
+T_norm = T - R(B) + R_ref(B)
+```
+
+- `T` is the measured time of our call.
+- `B` is the number of bytes the call reads and writes, as in the effective bandwidth above.
+- `R(B)` is the time of an ideal call on our GPU that only reads `B` bytes: one kernel that does nothing but read,
+  measured in the same run and on the same machine as the benchmarks.
+- `R_ref(B)` is the same on the other GPU.
+
+In words: from our time we take away what even an ideal call needs on our GPU, and add what an ideal call needs on the
+other GPU. What is left of our time is the extra work of our code: more kernels, waits, computations. That is the part
+we can improve. For large inputs this compares how close each library gets to the speed of the memory of its GPU; for
+small inputs it compares only the costs above one kernel start, which come from the code and not from the driver.
+
+Notes:
+
+- The ideal read is measured with a dedicated kernel, not with a reduction, because a reduction also computes and
+  combines partial results.
+- The normalized time is an estimate: on a GPU, reading and computing overlap.
+- The raw times are always shown too, because they are what a user gets.
 
 ### Prototype
 
