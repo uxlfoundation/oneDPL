@@ -18,9 +18,7 @@
 #include "support/utils_scan.h"
 
 #include <random>
-#include <algorithm>
 #include <cstdint>
-#include <vector>
 
 using namespace TestUtils;
 
@@ -29,24 +27,24 @@ void
 test_with_multiplies()
 {
 #if TEST_DPCPP_BACKEND_PRESENT
-    T trash = 666;
     T init = 1;
     const std::size_t custom_item_count = 10;
 
     for (size_t n = custom_item_count; n <= TestUtils::get_scan_test_max_n(); n = n <= 16 ? n + 1 : size_t(3.1415 * n))
     {
-        Sequence<T> out(n, [&](size_t) { return trash; });
-        Sequence<T> expected(n, [&](size_t) { return trash; });
+        Sequence<T> out(n);
+        Sequence<T> expected(n);
 
-        Sequence<T> in(n, [](size_t /*index*/) { return 1; });
+        auto one = [](size_t /*index*/) { return 1; };
+        Sequence<T> in(n, one);
         std::size_t counter = 0;
         std::generate_n(in.begin(), custom_item_count, [&counter]() { return (counter++) % 3 + 2; });
         std::default_random_engine gen{42};
         std::shuffle(in.begin(), in.end(), gen);
 
-        invoke_on_all_hetero_policies<21>()(test_exclusive_scan_with_binary_op<T>(), in.begin(), in.end(), out.begin(),
-                                            out.end(), expected.begin(), expected.end(), in.size(), init,
-                                            std::multiplies{}, trash);
+        invoke_on_all_hetero_policies<21>()(test_exclusive_scan_with_binary_op<>(), in.begin(), in.end(),
+                                            out.begin(), out.end(), expected.begin(), in.size(), init,
+                                            std::multiplies{}, T{0xDEAD}, one);
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 }
