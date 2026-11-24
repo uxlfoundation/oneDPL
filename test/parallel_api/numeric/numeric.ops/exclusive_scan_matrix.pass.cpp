@@ -41,7 +41,6 @@ test_matrix(Out init, BinaryOp binary_op, Out trash)
         invoke_on_all_policies<10>()(test_exclusive_scan_with_binary_op</*in_place*/true>(), in.begin(), in.end(),
                                      in.begin(), in.end(), expected.begin(), in.size(), init, binary_op, trash, gen);
 #endif
-        };
     }
 }
 
