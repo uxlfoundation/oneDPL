@@ -1,5 +1,27 @@
 # Benchmarking Offset-Based Segmented Reduction on Real and Synthetic Segment Distributions
 
+Table of contents:
+
+- [Introduction](#introduction)
+- [Review of Data Generation Approaches](#review-of-data-generation-approaches)
+  - [Uniform lengths with a swept average (ModernGPU)](#uniform-lengths-with-a-swept-average-moderngpu)
+  - [Fixed and bounded-uniform lengths (CUB)](#fixed-and-bounded-uniform-lengths-cub)
+  - [Real sparse matrices (SpMV literature)](#real-sparse-matrices-spmv-literature)
+  - [Real graphs (SNAP)](#real-graphs-snap)
+  - [Synthetic power-law graphs (R-MAT, Graph500)](#synthetic-power-law-graphs-r-mat-graph500)
+  - [Data sources and their users](#data-sources-and-their-users)
+  - [Summary](#summary)
+  - [Statistics of the real data sets](#statistics-of-the-real-data-sets)
+- [Proposal](#proposal)
+  - [Input regimes](#input-regimes)
+  - [File format of the segments](#file-format-of-the-segments)
+  - [Preparation of the data, step by step](#preparation-of-the-data-step-by-step)
+  - [Delivery of the data](#delivery-of-the-data)
+  - [Metrics and reporting](#metrics-and-reporting)
+  - [Prototype](#prototype)
+- [Open Questions](#open-questions)
+- [References](#references)
+
 ## Introduction
 
 The [Offset-Based Segmented Reduction](README.md) RFC (#2848) adds a `reduce_by_segment` overload
