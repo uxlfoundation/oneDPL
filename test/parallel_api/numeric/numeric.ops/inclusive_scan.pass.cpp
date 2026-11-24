@@ -32,7 +32,7 @@ struct test_inclusive_scan_with_plus
 
         // If the types are different, apply the init
         constexpr bool use_init = !std::is_same_v<Iterator1, Iterator2>;
-        Iterator3 orr;
+        Iterator2 orr;
         if constexpr (use_init)
         {
             inclusive_scan_serial(in_first, in_last, expected_first, std::plus<>{}, init);
