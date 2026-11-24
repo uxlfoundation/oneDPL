@@ -8,6 +8,7 @@ Table of contents:
   - [Fixed and bounded-uniform lengths (CUB)](#fixed-and-bounded-uniform-lengths-cub)
   - [Real sparse matrices (SpMV literature)](#real-sparse-matrices-spmv-literature)
   - [Real graphs (SNAP)](#real-graphs-snap)
+  - [Real workloads in the CUB benchmarks](#real-workloads-in-the-cub-benchmarks)
   - [Synthetic power-law graphs (R-MAT, Graph500)](#synthetic-power-law-graphs-r-mat-graph500)
   - [Data sources and their users](#data-sources-and-their-users)
   - [Summary](#summary)
@@ -138,6 +139,18 @@ Several SNAP graphs are also part of SuiteSparse (group `SNAP`), for example:
 | web-Google | 916,428 | 5,105,039 | 6 / 456 | 176,974 |
 | soc-LiveJournal1 | 4,847,571 | 68,993,773 | 14 / 20,293 | 539,119 |
 
+### Real workloads in the CUB benchmarks
+
+In 2026 the CUB team studied the same question for `DeviceSegmentedReduce` and `DeviceSegmentedSort` [17, 20]. They
+converted SuiteSparse matrices to stored segment offsets, keeping the order of the segments and the original values,
+analyzed 261 matrices [18], and selected a small set with the cuSPARSE team, together with a few customer workloads
+[19]. They characterized the segment sizes, including the share of empty and single-entry rows, the Gini coefficient and
+the entropy [21], fitted parametric distributions (those of C++ `<random>`) to them, and compared the performance on the
+generated and the real inputs. The conclusion was that parametric distributions are too weak to represent real data,
+especially for segmented sort, and that for segmented reduction they work only with a high tolerance; histograms did not
+save much space either, so they store the actual segment sizes [20, 22]. Their data, harness and results are internal;
+only the plans and the conclusions are public.
+
 ### Synthetic power-law graphs (R-MAT, Graph500)
 
 R-MAT [7] and the Kronecker generator of Graph500 produce graphs with power-law degree distributions from a few
@@ -174,26 +187,27 @@ algorithms; any of them can feed the segments files of this proposal.
 To choose the parameters of the synthetic regimes, the table below gives the statistics of the segment lengths of the
 sixteen real inputs (the matrices and the two SNAP graphs above), computed from the row lengths that the benchmarks
 read. The percentiles are over the segments; cv is the coefficient of variation of the length (the standard deviation
-divided by the average).
+divided by the average); Gini is the Gini coefficient of the lengths (0 when all segments have the same length,
+close to 1 when a few segments hold most of the elements); "Length 1" is the share of the segments of one element.
 
-| Input | Elements | Segments | Length: avg | p10 / p50 / p90 / p99 | max | cv | Empty segments | Longest empty run |
-|---|---|---|---|---|---|---|---|---|
-| dense2 | 4,000,000 | 2,000 | 2,000 | 2,000 / 2,000 / 2,000 / 2,000 | 2,000 | 0.00 | 0 | 0 |
-| conf5_4-8x8-05 | 1,916,928 | 49,152 | 39.0 | 39 / 39 / 39 / 39 | 39 | 0.00 | 0 | 0 |
-| mc2depi | 2,100,225 | 525,825 | 4.0 | 4 / 4 / 4 / 4 | 4 | 0.02 | 0 | 0 |
-| pwtk | 11,634,424 | 217,918 | 53.4 | 54 / 54 / 54 / 66 | 180 | 0.09 | 0 | 0 |
-| shipsec1 | 7,813,404 | 140,874 | 55.5 | 36 / 54 / 72 / 90 | 102 | 0.20 | 0 | 0 |
-| cant | 4,007,383 | 62,451 | 64.2 | 49 / 74 / 76 / 76 | 78 | 0.22 | 0 | 0 |
-| consph | 6,010,480 | 83,334 | 72.1 | 45 / 81 / 81 / 81 | 81 | 0.26 | 0 | 0 |
-| pdb1HYS | 4,344,765 | 36,417 | 119 | 75 / 123 / 156 / 177 | 204 | 0.27 | 0 | 0 |
-| rma10 | 2,374,001 | 46,835 | 50.7 | 22 / 46 / 100 / 115 | 145 | 0.55 | 0 | 0 |
-| cop20k_A | 2,624,331 | 121,192 | 21.7 | 0 / 23 / 45 / 55 | 81 | 0.64 | 21,349 (17.6 %) | 21,349 |
-| mac_econ_fwd500 | 1,273,389 | 206,500 | 6.2 | 3 / 5 / 10 / 24 | 44 | 0.72 | 0 | 0 |
-| scircuit | 958,936 | 170,998 | 5.6 | 3 / 5 / 8 / 22 | 353 | 0.78 | 0 | 0 |
-| web-Google | 5,105,039 | 916,428 | 5.6 | 0 / 3 / 14 / 23 | 456 | 1.18 | 176,974 (19.3 %) | 9 |
-| rail4284 | 11,284,032 | 4,284 | 2,634 | 88 / 1,159 / 6,987 / 19,700 | 56,182 | 1.60 | 0 | 0 |
-| soc-LiveJournal1 | 68,993,773 | 4,847,571 | 14.2 | 0 / 4 / 36 / 142 | 20,293 | 2.54 | 539,119 (11.1 %) | 84 |
-| webbase-1M | 3,105,536 | 1,000,005 | 3.1 | 2 / 2 / 3 / 17 | 4,700 | 8.16 | 0 | 0 |
+| Input | Elements | Segments | Length: avg | p10 / p50 / p90 / p99 | max | cv | Gini | Length 1 | Empty segments | Longest empty run |
+|---|---|---|---|---|---|---|---|---|---|---|
+| dense2 | 4,000,000 | 2,000 | 2,000 | 2,000 / 2,000 / 2,000 / 2,000 | 2,000 | 0.00 | 0.00 | 0 | 0 | 0 |
+| conf5_4-8x8-05 | 1,916,928 | 49,152 | 39.0 | 39 / 39 / 39 / 39 | 39 | 0.00 | 0.00 | 0 | 0 | 0 |
+| mc2depi | 2,100,225 | 525,825 | 4.0 | 4 / 4 / 4 / 4 | 4 | 0.02 | 0.00 | 0 | 0 | 0 |
+| pwtk | 11,634,424 | 217,918 | 53.4 | 54 / 54 / 54 / 66 | 180 | 0.09 | 0.02 | 0 | 0 | 0 |
+| shipsec1 | 7,813,404 | 140,874 | 55.5 | 36 / 54 / 72 / 90 | 102 | 0.20 | 0.09 | 0 | 0 | 0 |
+| cant | 4,007,383 | 62,451 | 64.2 | 49 / 74 / 76 / 76 | 78 | 0.22 | 0.11 | 0.4 % | 0 | 0 |
+| consph | 6,010,480 | 83,334 | 72.1 | 45 / 81 / 81 / 81 | 81 | 0.26 | 0.10 | 4.4 % | 0 | 0 |
+| pdb1HYS | 4,344,765 | 36,417 | 119 | 75 / 123 / 156 / 177 | 204 | 0.27 | 0.15 | 0 | 0 | 0 |
+| rma10 | 2,374,001 | 46,835 | 50.7 | 22 / 46 / 100 / 115 | 145 | 0.55 | 0.30 | 0 | 0 | 0 |
+| cop20k_A | 2,624,331 | 121,192 | 21.7 | 0 / 23 / 45 / 55 | 81 | 0.64 | 0.33 | 0 | 21,349 (17.6 %) | 21,349 |
+| mac_econ_fwd500 | 1,273,389 | 206,500 | 6.2 | 3 / 5 / 10 / 24 | 44 | 0.72 | 0.33 | <0.1 % | 0 | 0 |
+| scircuit | 958,936 | 170,998 | 5.6 | 3 / 5 / 8 / 22 | 353 | 0.78 | 0.25 | <0.1 % | 0 | 0 |
+| web-Google | 5,105,039 | 916,428 | 5.6 | 0 / 3 / 14 / 23 | 456 | 1.18 | 0.57 | 14.0 % | 176,974 (19.3 %) | 9 |
+| rail4284 | 11,284,032 | 4,284 | 2,634 | 88 / 1,159 / 6,987 / 19,700 | 56,182 | 1.60 | 0.65 | 0 | 0 | 0 |
+| soc-LiveJournal1 | 68,993,773 | 4,847,571 | 14.2 | 0 / 4 / 36 / 142 | 20,293 | 2.54 | 0.72 | 18.9 % | 539,119 (11.1 %) | 84 |
+| webbase-1M | 3,105,536 | 1,000,005 | 3.1 | 2 / 2 / 3 / 17 | 4,700 | 8.16 | 0.35 | 0.6 % | 0 | 0 |
 
 Where the elements are matters for the work more than where the segments are: the next table gives the share of the
 elements, in percent, that lie in the segments of each length range.
@@ -238,6 +252,14 @@ Observations:
   applications: the Williams / Bell–Garland matrices were selected for diverse row structures, and the usage study lists
   the kinds of applications but not their sizes. The statistics can therefore set the ranges of the regimes, but not
   weights by frequency of use.
+- **Inequality.** The Gini coefficient complements the ratio of the maximum to the average: `webbase-1M` has an extreme
+  maximum but a moderate Gini (0.35), because its few long rows hold a small share of the elements, while in
+  `soc-LiveJournal1` (0.72) the inequality spans the whole set. Neither depends on the order of the segments, so the
+  longest empty run is listed separately.
+- **Synthetic regimes and real inputs.** The statistics set the ranges of the synthetic regimes, which cover the shapes
+  cheaply in every run, but do not make the real inputs unnecessary: the CUB study described above found that inputs
+  generated from fitted distributions do not reproduce the performance on the real ones [20, 22]. Hence the real inputs
+  stay available for on-demand runs.
 
 ## Proposal
 
@@ -269,8 +291,9 @@ A segments file is little-endian binary: the 8-byte magic `ONEDPLSG`, a `uint64`
 segments `m`, a `uint64` number of elements `nnz`, and `m + 1` `int64` offsets with `offsets[0] = 0` and
 `offsets[m] = nnz`. A conversion script produces it from the Matrix Market files of SuiteSparse and from the edge lists
 of SNAP, expanding symmetric matrices to both triangles and keeping empty rows. A manifest records the source URL, the
-checksum of the source archive and of the result, and the statistics of the rows: `m`, `nnz`, the number of empty rows,
-and the minimum, average, median, 99th percentile and maximum row length. The whole set above takes about 65 MB.
+checksum of the source archive and of the result, the application and the reason the input is in the set, and the
+statistics of the rows: `m`, `nnz`, the number of empty rows, and the minimum, average, median, 99th percentile and
+maximum row length. The whole set above takes about 65 MB.
 
 The benchmark selects a file through an environment variable (e.g. `ONEDPLBENCH_SEGMENTS_FILE`); the input size is
 then taken from the file. The same mechanism serves the key-based `reduce_by_segment`, whose keys are derived from the
@@ -414,6 +437,11 @@ locally. The prototype runs all regimes on a GPU and on a CPU device as SYCL dev
   collection as in [3].
 - Value types (`float`, `double`, integer types) and offset types (32-bit and 64-bit) to measure.
 - Whether the same data sets should also drive the benchmarks of the host policies.
+- Whether to take the values of the real inputs from the matrices instead of generating them: for a sum of
+  floating-point values it does not change the performance, but for operations whose work depends on the values (e.g.
+  the minimum with its position) it may.
+- Whether to add inputs from applications that use segmented reductions (see the usage study), as the CUB set includes
+  customer workloads [19].
 
 ## References
 
@@ -451,3 +479,15 @@ locally. The prototype runs all regimes on a GPU and on a CPU device as SYCL dev
     https://graph500.org
 16. R. F. Boisvert, R. Pozo, K. Remington, R. F. Barrett and J. J. Dongarra. *Matrix Market: A Web Resource for Test
     Matrix Collections.* In: Quality of Numerical Software, Chapman & Hall, 1997. https://math.nist.gov/MatrixMarket
+17. NVIDIA CCCL issue #11250. *[FEA]: collect segmented reduce benchmarks.* 2026.
+    https://github.com/NVIDIA/cccl/issues/11250
+18. NVIDIA CCCL issue #11024. *[FEA]: Add SuiteSparse Matrix Market workloads for segmented reduce.* 2026.
+    https://github.com/NVIDIA/cccl/issues/11024
+19. NVIDIA CCCL issue #11313. *[FEA]: Collect representative DeviceSegmentedReduce workloads.* 2026.
+    https://github.com/NVIDIA/cccl/issues/11313
+20. NVIDIA CCCL issue #11251. *[SPIKE]: Investigate a distribution-based workload model for segmented algorithm
+    benchmarks.* 2026. https://github.com/NVIDIA/cccl/issues/11251
+21. NVIDIA CCCL issue #11315. *[SPIKE]: Characterize real segmented-workload distributions.* 2026.
+    https://github.com/NVIDIA/cccl/issues/11315
+22. NVIDIA CCCL issue #11317. *[SPIKE]: Compare real and modeled segmented-algorithm performance.* 2026.
+    https://github.com/NVIDIA/cccl/issues/11317
