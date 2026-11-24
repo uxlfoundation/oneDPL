@@ -399,7 +399,8 @@ The options:
 | Normalization of the transfer only | replace the read time on our GPU with the read time on the other GPU, keep the fixed cost | the cost of one kernel start differs between the drivers and stays in the comparison |
 | Normalization of the ideal call | replace the time of an ideal call on our GPU with that on the other GPU (below) | an estimate, see the notes |
 
-The proposal is to show two numbers for every case: the raw time, and the time normalized by the ideal call:
+The proposal is to show three numbers for every case: the raw time, the time normalized by the ideal call, and the
+efficiency of the call against the ideal one. The normalized time is:
 
 ```
 T_norm = T - R(B) + R_ref(B)
@@ -416,10 +417,18 @@ other GPU. What is left of our time is the extra work of our code: more kernels,
 we can improve. For large inputs this compares how close each library gets to the speed of the memory of its GPU; for
 small inputs it compares only the costs above one kernel start, which come from the code and not from the driver.
 
+The efficiency is `E = R(B) / T`: 1 means that the call is as fast as reading its bytes once, 0.5 that it takes twice as
+long. It is computed for each library on its own GPU and needs no reference device, so it is the simplest number to
+compare: for example, an implementation with an efficiency close to 1 on large inputs reads at the full speed of the
+memory of its GPU, whatever that speed is. The normalized time gives the same comparison as a time on the reference GPU.
+
 Notes:
 
 - The ideal read is measured with a dedicated kernel, not with a reduction, because a reduction also computes and
   combines partial results.
+- The ideal read on each GPU includes its caches: an input that fits into the cache of one GPU but not of the other is
+  read faster on the first one (e.g. an input of a few tens of MB on GPUs with caches of 18 and 32 MB), so the
+  normalization takes the difference in the cache sizes away too, as a property of the hardware rather than of the code.
 - The normalized time is an estimate: on a GPU, reading and computing overlap.
 - The raw times are always shown too, because they are what a user gets.
 
