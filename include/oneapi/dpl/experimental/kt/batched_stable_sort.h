@@ -13,7 +13,9 @@
 #include <cassert>
 #include <cstdint>
 #include <cstddef>
+#include <functional>
 #include <iterator>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -23,6 +25,7 @@
 #include "internal/kt_utils.h"
 #include "internal/radix_sort_utils.h"
 #include "internal/radix_sort_dispatchers.h"
+#include "internal/sycl_merge_sort_kernels.h"
 
 namespace oneapi::dpl::experimental::kt::gpu
 {
@@ -31,10 +34,26 @@ namespace oneapi::dpl::experimental::kt::gpu
 // Sort configurations: each selects one algorithm and carries its specific parameters
 //-----------------------------------------------------------------------------
 
-// Modified OneSweep radix sort; any __segment_size
-template <std::uint8_t __radix_bits = 8>
-struct radix_many_groups_tag
+// Work-group resident merge path sort; requires __segment_size <= data_per_workitem * workgroup_size.
+template <typename _Compare = std::less<>>
+struct merge_wg_resident_tag
 {
+    using compare_type = _Compare;
+};
+
+// Work-group resident radix sort, requires __segment_size <= data_per_workitem * workgroup_size
+template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
+struct radix_wg_resident_tag
+{
+    static constexpr bool is_ascending = __is_ascending;
+    static constexpr std::uint8_t radix_bits = __radix_bits;
+};
+
+// Modified OneSweep radix sort: each segment may span multiple work-groups; any __segment_size
+template <bool __is_ascending = true, std::uint8_t __radix_bits = 8>
+struct radix_multi_wg_tag
+{
+    static constexpr bool is_ascending = __is_ascending;
     static constexpr std::uint8_t radix_bits = __radix_bits;
 };
 
@@ -42,22 +61,60 @@ namespace __impl
 {
 
 template <typename _SortConfig>
-struct __is_radix_many_groups_tag : std::false_type
-{
-};
-template <std::uint8_t __radix_bits>
-struct __is_radix_many_groups_tag<radix_many_groups_tag<__radix_bits>> : std::true_type
-{
-};
+inline constexpr bool __is_merge_wg_resident_tag_v = false;
+
+template <typename _Compare>
+inline constexpr bool __is_merge_wg_resident_tag_v<merge_wg_resident_tag<_Compare>> = true;
+
+template <typename _SortConfig>
+inline constexpr bool __is_radix_wg_resident_tag_v = false;
+
+template <bool __is_ascending, std::uint8_t __radix_bits>
+inline constexpr bool __is_radix_wg_resident_tag_v<radix_wg_resident_tag<__is_ascending, __radix_bits>> = true;
+
+template <typename _SortConfig>
+inline constexpr bool __is_radix_multi_wg_tag_v = false;
+
+template <bool __is_ascending, std::uint8_t __radix_bits>
+inline constexpr bool __is_radix_multi_wg_tag_v<radix_multi_wg_tag<__is_ascending, __radix_bits>> = true;
 
 // Rejects unsupported combinations of _SortConfig and kernel_param at compile time
 template <typename _SortConfig, typename _KernelParam>
 constexpr void
 __check_batched_sort_config()
 {
-    static_assert(__is_radix_many_groups_tag<_SortConfig>::value,
-                  "Unsupported _SortConfig: only radix_many_groups_tag is currently implemented");
-    if constexpr (__is_radix_many_groups_tag<_SortConfig>::value)
+    static_assert(__is_merge_wg_resident_tag_v<_SortConfig> || __is_radix_wg_resident_tag_v<_SortConfig> ||
+                      __is_radix_multi_wg_tag_v<_SortConfig>,
+                  "Unsupported _SortConfig: only merge_wg_resident_tag, radix_wg_resident_tag and "
+                  "radix_multi_wg_tag are currently implemented");
+    if constexpr (__is_merge_wg_resident_tag_v<_SortConfig>)
+    {
+        // The kernel itself works with any work-group size, but sizes which are not a multiple of the sub-group size
+        // leave partial sub-groups and are not expected to perform well, so they are not supported.
+        static_assert(_KernelParam::workgroup_size > 0 && _KernelParam::workgroup_size % 32 == 0 &&
+                          _KernelParam::workgroup_size <= 1024,
+                      "merge_wg_resident_tag requires a positive multiple of 32 and at most 1024 work-items in a "
+                      "work-group");
+        static_assert(_KernelParam::data_per_workitem > 0,
+                      "merge_wg_resident_tag requires a positive number of elements per work-item");
+    }
+    if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
+    {
+        // There is no fundamental limitation here, 4 bits works but is rarely beneficial, so we enforce 8 bits for now,
+        // for consistency with onesweep, and to encourage settings which are most performant.
+        static_assert(_SortConfig::radix_bits == 8, "radix_wg_resident_tag currently requires 8 radix bits");
+        static_assert(_KernelParam::workgroup_size > 0 && _KernelParam::workgroup_size % 32 == 0 &&
+                          _KernelParam::workgroup_size <= 1024,
+                      "radix_wg_resident_tag requires a positive multiple of 32 and at most 1024 work-items in a "
+                      "work-group");
+        static_assert(_KernelParam::data_per_workitem > 0,
+                      "radix_wg_resident_tag requires a positive number of elements per work-item");
+        // Bin counts and local offsets within the work-group resident kernel use 16-bit integers
+        static_assert(std::uint32_t{_KernelParam::workgroup_size} * _KernelParam::data_per_workitem <=
+                          std::numeric_limits<std::uint16_t>::max(),
+                      "The work-group tile size (workgroup_size * data_per_workitem) must not exceed 65535");
+    }
+    if constexpr (__is_radix_multi_wg_tag_v<_SortConfig>)
     {
         __check_sycl_onesweep_kernel_params<_SortConfig::radix_bits, _KernelParam::data_per_workitem,
                                             _KernelParam::workgroup_size>();
@@ -75,32 +132,54 @@ __batched_stable_sort_bytes_req(std::size_t __segment_size, std::size_t __total_
     __check_batched_sort_config<_SortConfig, _KernelParam>();
     assert(__segment_size > 0 && "The segment size must be greater than zero");
     assert(__total_size % __segment_size == 0 && "The number of elements must be a multiple of the segment size");
-    if (__total_size == 0)
+    // The work-group resident sorts need no temporary global memory
+    if constexpr (__is_merge_wg_resident_tag_v<_SortConfig> || __is_radix_wg_resident_tag_v<_SortConfig>)
         return 0;
-    return __onesweep_temp_bytes<_KeyT, _ValT, _SortConfig::radix_bits, _KernelParam::data_per_workitem,
-                                 _KernelParam::workgroup_size>(__total_size, __segment_size);
+    else
+    {
+        if (__total_size == 0)
+            return 0;
+        return __onesweep_temp_bytes<_KeyT, _ValT, _SortConfig::radix_bits, _KernelParam::data_per_workitem,
+                                     _KernelParam::workgroup_size>(__total_size, __segment_size);
+    }
 }
 
-template <typename _SortConfig, bool __is_ascending, bool __in_place, typename _RngPack1, typename _RngPack2,
-          typename _KernelParam, typename _TempStorage>
+template <typename _SortConfig, bool __in_place, typename _RngPack1, typename _RngPack2, typename _KernelParam,
+          typename _TempStorage>
 sycl::event
 __batched_stable_sort(sycl::queue __q, _RngPack1&& __pack_in, _RngPack2&& __pack_out, std::size_t __segment_size,
-                      _KernelParam __param, _TempStorage __temp_storage)
+                      _KernelParam __param, [[maybe_unused]] _TempStorage __temp_storage)
 {
     __check_batched_sort_config<_SortConfig, _KernelParam>();
-#if _ONEDPL_ENABLE_SYCL_RADIX_SORT_KT
-    return __batched_onesweep<__is_ascending, _SortConfig::radix_bits, __in_place>(
-        __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param,
-        __temp_storage);
+    if constexpr (__is_merge_wg_resident_tag_v<_SortConfig>)
+    {
+        return __batched_wg_resident_merge_sort<typename _SortConfig::compare_type>(
+            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param);
+    }
+    else if constexpr (__is_radix_wg_resident_tag_v<_SortConfig>)
+    {
+#if _ONEDPL_ENABLE_SYCL_WG_RESIDENT_RADIX_SORT_KT
+        return __batched_wg_resident<_SortConfig::is_ascending, _SortConfig::radix_bits>(
+            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param);
 #else
-    __sycl_radix_sort_unsupported_msg<_SortConfig>();
+        __sycl_wg_resident_radix_sort_unsupported_msg<_SortConfig>();
 #endif
+    }
+    else
+    {
+#if _ONEDPL_ENABLE_SYCL_ONESWEEP_KT
+        return __batched_onesweep<_SortConfig::is_ascending, _SortConfig::radix_bits, __in_place>(
+            __q, std::forward<_RngPack1>(__pack_in), std::forward<_RngPack2>(__pack_out), __segment_size, __param,
+            __temp_storage);
+#else
+        __sycl_radix_sort_unsupported_msg<_SortConfig>();
+#endif
+    }
 }
 
 // The bodies of the public overloads below. _TempStorage is __internal_temp_storage or __external_temp_storage.
 
-template <typename _SortConfig, bool __is_ascending, typename _KernelParam, typename _TempStorage, typename _KeysRng,
-          typename _Size>
+template <typename _SortConfig, typename _KernelParam, typename _TempStorage, typename _KeysRng, typename _Size>
 sycl::event
 __batched_stable_sort_rng(sycl::queue __q, _KeysRng&& __keys_rng, _Size __segment_size, _KernelParam __param,
                           _TempStorage __temp_storage)
@@ -111,12 +190,11 @@ __batched_stable_sort_rng(sycl::queue __q, _KeysRng&& __keys_rng, _Size __segmen
         return {};
 
     auto __pack = __rng_pack{oneapi::dpl::__ranges::views::all(std::forward<_KeysRng>(__keys_rng))};
-    return __batched_stable_sort<_SortConfig, __is_ascending, /*__in_place=*/true>(__q, __pack, __pack, __segment_size,
-                                                                                   __param, __temp_storage);
+    return __batched_stable_sort<_SortConfig, /*__in_place=*/true>(__q, __pack, __pack, __segment_size, __param,
+                                                                   __temp_storage);
 }
 
-template <typename _SortConfig, bool __is_ascending, typename _KernelParam, typename _TempStorage,
-          typename _KeysIterator, typename _Size>
+template <typename _SortConfig, typename _KernelParam, typename _TempStorage, typename _KeysIterator, typename _Size>
 sycl::event
 __batched_stable_sort_iter(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_last, _Size __segment_size,
                            _KernelParam __param, _TempStorage __temp_storage)
@@ -129,12 +207,12 @@ __batched_stable_sort_iter(sycl::queue __q, _KeysIterator __keys_first, _KeysIte
     auto __keys_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
     auto __keys_rng = __keys_keep(__keys_first, __keys_last).all_view();
     auto __pack = __rng_pack{std::move(__keys_rng)};
-    return __batched_stable_sort<_SortConfig, __is_ascending, /*__in_place=*/true>(__q, __pack, __pack, __segment_size,
-                                                                                   __param, __temp_storage);
+    return __batched_stable_sort<_SortConfig, /*__in_place=*/true>(__q, __pack, __pack, __segment_size, __param,
+                                                                   __temp_storage);
 }
 
-template <typename _SortConfig, bool __is_ascending, typename _KernelParam, typename _TempStorage, typename _KeysRng,
-          typename _ValsRng, typename _Size>
+template <typename _SortConfig, typename _KernelParam, typename _TempStorage, typename _KeysRng, typename _ValsRng,
+          typename _Size>
 sycl::event
 __batched_stable_sort_by_key_rng(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRng&& __vals_rng, _Size __segment_size,
                                  _KernelParam __param, _TempStorage __temp_storage)
@@ -146,12 +224,12 @@ __batched_stable_sort_by_key_rng(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRn
 
     auto __pack = __rng_pack{oneapi::dpl::__ranges::views::all(std::forward<_KeysRng>(__keys_rng)),
                              oneapi::dpl::__ranges::views::all(std::forward<_ValsRng>(__vals_rng))};
-    return __batched_stable_sort<_SortConfig, __is_ascending, /*__in_place=*/true>(__q, __pack, __pack, __segment_size,
-                                                                                   __param, __temp_storage);
+    return __batched_stable_sort<_SortConfig, /*__in_place=*/true>(__q, __pack, __pack, __segment_size, __param,
+                                                                   __temp_storage);
 }
 
-template <typename _SortConfig, bool __is_ascending, typename _KernelParam, typename _TempStorage,
-          typename _KeysIterator, typename _ValsIterator, typename _Size>
+template <typename _SortConfig, typename _KernelParam, typename _TempStorage, typename _KeysIterator,
+          typename _ValsIterator, typename _Size>
 sycl::event
 __batched_stable_sort_by_key_iter(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator __keys_last,
                                   _ValsIterator __vals_first, _Size __segment_size, _KernelParam __param,
@@ -167,12 +245,12 @@ __batched_stable_sort_by_key_iter(sycl::queue __q, _KeysIterator __keys_first, _
     auto __vals_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
     auto __vals_rng = __vals_keep(__vals_first, __vals_first + __n).all_view();
     auto __pack = __rng_pack{std::move(__keys_rng), std::move(__vals_rng)};
-    return __batched_stable_sort<_SortConfig, __is_ascending, /*__in_place=*/true>(__q, __pack, __pack, __segment_size,
-                                                                                   __param, __temp_storage);
+    return __batched_stable_sort<_SortConfig, /*__in_place=*/true>(__q, __pack, __pack, __segment_size, __param,
+                                                                   __temp_storage);
 }
 
-template <typename _SortConfig, bool __is_ascending, typename _KernelParam, typename _TempStorage, typename _KeysRng1,
-          typename _KeysRng2, typename _Size>
+template <typename _SortConfig, typename _KernelParam, typename _TempStorage, typename _KeysRng1, typename _KeysRng2,
+          typename _Size>
 sycl::event
 __batched_stable_sort_out_rng(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_out_rng, _Size __segment_size,
                               _KernelParam __param, _TempStorage __temp_storage)
@@ -184,12 +262,12 @@ __batched_stable_sort_out_rng(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2
 
     auto __pack = __rng_pack{oneapi::dpl::__ranges::views::all(std::forward<_KeysRng1>(__keys_rng))};
     auto __pack_out = __rng_pack{oneapi::dpl::__ranges::views::all(std::forward<_KeysRng2>(__keys_out_rng))};
-    return __batched_stable_sort<_SortConfig, __is_ascending, /*__in_place=*/false>(
-        __q, std::move(__pack), std::move(__pack_out), __segment_size, __param, __temp_storage);
+    return __batched_stable_sort<_SortConfig, /*__in_place=*/false>(__q, std::move(__pack), std::move(__pack_out),
+                                                                    __segment_size, __param, __temp_storage);
 }
 
-template <typename _SortConfig, bool __is_ascending, typename _KernelParam, typename _TempStorage,
-          typename _KeysIterator1, typename _KeysIterator2, typename _Size>
+template <typename _SortConfig, typename _KernelParam, typename _TempStorage, typename _KeysIterator1,
+          typename _KeysIterator2, typename _Size>
 sycl::event
 __batched_stable_sort_out_iter(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_last,
                                _KeysIterator2 __keys_out_first, _Size __segment_size, _KernelParam __param,
@@ -206,12 +284,12 @@ __batched_stable_sort_out_iter(sycl::queue __q, _KeysIterator1 __keys_first, _Ke
     auto __keys_out_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
     auto __keys_out_rng = __keys_out_keep(__keys_out_first, __keys_out_first + __n).all_view();
     auto __pack_out = __rng_pack{std::move(__keys_out_rng)};
-    return __batched_stable_sort<_SortConfig, __is_ascending, /*__in_place=*/false>(
-        __q, std::move(__pack), std::move(__pack_out), __segment_size, __param, __temp_storage);
+    return __batched_stable_sort<_SortConfig, /*__in_place=*/false>(__q, std::move(__pack), std::move(__pack_out),
+                                                                    __segment_size, __param, __temp_storage);
 }
 
-template <typename _SortConfig, bool __is_ascending, typename _KernelParam, typename _TempStorage, typename _KeysRng1,
-          typename _ValsRng1, typename _KeysRng2, typename _ValsRng2, typename _Size>
+template <typename _SortConfig, typename _KernelParam, typename _TempStorage, typename _KeysRng1, typename _ValsRng1,
+          typename _KeysRng2, typename _ValsRng2, typename _Size>
 sycl::event
 __batched_stable_sort_by_key_out_rng(sycl::queue __q, _KeysRng1&& __keys_rng, _ValsRng1&& __vals_rng,
                                      _KeysRng2&& __keys_out_rng, _ValsRng2&& __vals_out_rng, _Size __segment_size,
@@ -226,13 +304,12 @@ __batched_stable_sort_by_key_out_rng(sycl::queue __q, _KeysRng1&& __keys_rng, _V
                              oneapi::dpl::__ranges::views::all(std::forward<_ValsRng1>(__vals_rng))};
     auto __pack_out = __rng_pack{oneapi::dpl::__ranges::views::all(std::forward<_KeysRng2>(__keys_out_rng)),
                                  oneapi::dpl::__ranges::views::all(std::forward<_ValsRng2>(__vals_out_rng))};
-    return __batched_stable_sort<_SortConfig, __is_ascending, /*__in_place=*/false>(
-        __q, std::move(__pack), std::move(__pack_out), __segment_size, __param, __temp_storage);
+    return __batched_stable_sort<_SortConfig, /*__in_place=*/false>(__q, std::move(__pack), std::move(__pack_out),
+                                                                    __segment_size, __param, __temp_storage);
 }
 
-template <typename _SortConfig, bool __is_ascending, typename _KernelParam, typename _TempStorage,
-          typename _KeysIterator1, typename _ValsIterator1, typename _KeysIterator2, typename _ValsIterator2,
-          typename _Size>
+template <typename _SortConfig, typename _KernelParam, typename _TempStorage, typename _KeysIterator1,
+          typename _ValsIterator1, typename _KeysIterator2, typename _ValsIterator2, typename _Size>
 sycl::event
 __batched_stable_sort_by_key_out_iter(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1 __keys_last,
                                       _ValsIterator1 __vals_first, _KeysIterator2 __keys_out_first,
@@ -255,8 +332,8 @@ __batched_stable_sort_by_key_out_iter(sycl::queue __q, _KeysIterator1 __keys_fir
     auto __vals_out_keep = oneapi::dpl::__ranges::__get_sycl_range<sycl::access_mode::read_write>();
     auto __vals_out_rng = __vals_out_keep(__vals_out_first, __vals_out_first + __n).all_view();
     auto __pack_out = __rng_pack{std::move(__keys_out_rng), std::move(__vals_out_rng)};
-    return __batched_stable_sort<_SortConfig, __is_ascending, /*__in_place=*/false>(
-        __q, std::move(__pack), std::move(__pack_out), __segment_size, __param, __temp_storage);
+    return __batched_stable_sort<_SortConfig, /*__in_place=*/false>(__q, std::move(__pack), std::move(__pack_out),
+                                                                    __segment_size, __param, __temp_storage);
 }
 
 } // namespace __impl
@@ -289,30 +366,30 @@ batched_stable_sort_by_key_bytes_req(std::size_t __segment_size, std::size_t __t
 // In-place sorts
 //-----------------------------------------------------------------------------
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysRng>
+template <typename _SortConfig, typename _KernelParam, typename _KeysRng>
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
 batched_stable_sort(sycl::queue __q, _KeysRng&& __keys_rng, __impl::__rng_difference_t<_KeysRng> __segment_size,
                     _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_rng<_SortConfig, __is_ascending>(
-        __q, std::forward<_KeysRng>(__keys_rng), __segment_size, __param, __impl::__internal_temp_storage{});
+    return __impl::__batched_stable_sort_rng<_SortConfig>(__q, std::forward<_KeysRng>(__keys_rng), __segment_size,
+                                                          __param, __impl::__internal_temp_storage{});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysRng>
+template <typename _SortConfig, typename _KernelParam, typename _KeysRng>
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
 batched_stable_sort(sycl::queue __q, _KeysRng&& __keys_rng, __impl::__rng_difference_t<_KeysRng> __segment_size,
                     void* __temp_storage, std::size_t __temp_storage_bytes, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_rng<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_rng<_SortConfig>(
         __q, std::forward<_KeysRng>(__keys_rng), __segment_size, __param,
         __impl::__external_temp_storage{__temp_storage, __temp_storage_bytes});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysIterator>
+template <typename _SortConfig, typename _KernelParam, typename _KeysIterator>
 std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -320,11 +397,11 @@ batched_stable_sort(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator _
                     typename std::iterator_traits<_KeysIterator>::difference_type __segment_size,
                     _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_iter<_SortConfig, __is_ascending>(
-        __q, __keys_first, __keys_last, __segment_size, __param, __impl::__internal_temp_storage{});
+    return __impl::__batched_stable_sort_iter<_SortConfig>(__q, __keys_first, __keys_last, __segment_size, __param,
+                                                           __impl::__internal_temp_storage{});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysIterator>
+template <typename _SortConfig, typename _KernelParam, typename _KeysIterator>
 std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -332,24 +409,24 @@ batched_stable_sort(sycl::queue __q, _KeysIterator __keys_first, _KeysIterator _
                     typename std::iterator_traits<_KeysIterator>::difference_type __segment_size, void* __temp_storage,
                     std::size_t __temp_storage_bytes, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_iter<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_iter<_SortConfig>(
         __q, __keys_first, __keys_last, __segment_size, __param,
         __impl::__external_temp_storage{__temp_storage, __temp_storage_bytes});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysRng, typename _ValsRng>
+template <typename _SortConfig, typename _KernelParam, typename _KeysRng, typename _ValsRng>
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
 batched_stable_sort_by_key(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRng&& __vals_rng,
                            __impl::__rng_difference_t<_KeysRng> __segment_size, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_by_key_rng<_SortConfig, __is_ascending>(
-        __q, std::forward<_KeysRng>(__keys_rng), std::forward<_ValsRng>(__vals_rng), __segment_size, __param,
-        __impl::__internal_temp_storage{});
+    return __impl::__batched_stable_sort_by_key_rng<_SortConfig>(__q, std::forward<_KeysRng>(__keys_rng),
+                                                                 std::forward<_ValsRng>(__vals_rng), __segment_size,
+                                                                 __param, __impl::__internal_temp_storage{});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysRng, typename _ValsRng>
+template <typename _SortConfig, typename _KernelParam, typename _KeysRng, typename _ValsRng>
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -357,13 +434,12 @@ batched_stable_sort_by_key(sycl::queue __q, _KeysRng&& __keys_rng, _ValsRng&& __
                            __impl::__rng_difference_t<_KeysRng> __segment_size, void* __temp_storage,
                            std::size_t __temp_storage_bytes, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_by_key_rng<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_by_key_rng<_SortConfig>(
         __q, std::forward<_KeysRng>(__keys_rng), std::forward<_ValsRng>(__vals_rng), __segment_size, __param,
         __impl::__external_temp_storage{__temp_storage, __temp_storage_bytes});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysIterator,
-          typename _ValsIterator>
+template <typename _SortConfig, typename _KernelParam, typename _KeysIterator, typename _ValsIterator>
 std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -372,12 +448,11 @@ batched_stable_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIte
                            typename std::iterator_traits<_KeysIterator>::difference_type __segment_size,
                            _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_by_key_iter<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_by_key_iter<_SortConfig>(
         __q, __keys_first, __keys_last, __vals_first, __segment_size, __param, __impl::__internal_temp_storage{});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysIterator,
-          typename _ValsIterator>
+template <typename _SortConfig, typename _KernelParam, typename _KeysIterator, typename _ValsIterator>
 std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -386,7 +461,7 @@ batched_stable_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIte
                            typename std::iterator_traits<_KeysIterator>::difference_type __segment_size,
                            void* __temp_storage, std::size_t __temp_storage_bytes, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_by_key_iter<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_by_key_iter<_SortConfig>(
         __q, __keys_first, __keys_last, __vals_first, __segment_size, __param,
         __impl::__external_temp_storage{__temp_storage, __temp_storage_bytes});
 }
@@ -397,21 +472,19 @@ batched_stable_sort_by_key(sycl::queue __q, _KeysIterator __keys_first, _KeysIte
 // The out-of-place key-value overloads require an output keys sequence which is not an integer, as otherwise an
 // in-place call with temporary storage (keys, values, segment size, pointer, bytes) would also match them.
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysRng1,
-          typename _KeysRng2>
+template <typename _SortConfig, typename _KernelParam, typename _KeysRng1, typename _KeysRng2>
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng1> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
 batched_stable_sort(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_out_rng,
                     __impl::__rng_difference_t<_KeysRng1> __segment_size, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_out_rng<_SortConfig, __is_ascending>(
-        __q, std::forward<_KeysRng1>(__keys_rng), std::forward<_KeysRng2>(__keys_out_rng), __segment_size, __param,
-        __impl::__internal_temp_storage{});
+    return __impl::__batched_stable_sort_out_rng<_SortConfig>(__q, std::forward<_KeysRng1>(__keys_rng),
+                                                              std::forward<_KeysRng2>(__keys_out_rng), __segment_size,
+                                                              __param, __impl::__internal_temp_storage{});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysRng1,
-          typename _KeysRng2>
+template <typename _SortConfig, typename _KernelParam, typename _KeysRng1, typename _KeysRng2>
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng1> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -419,13 +492,12 @@ batched_stable_sort(sycl::queue __q, _KeysRng1&& __keys_rng, _KeysRng2&& __keys_
                     __impl::__rng_difference_t<_KeysRng1> __segment_size, void* __temp_storage,
                     std::size_t __temp_storage_bytes, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_out_rng<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_out_rng<_SortConfig>(
         __q, std::forward<_KeysRng1>(__keys_rng), std::forward<_KeysRng2>(__keys_out_rng), __segment_size, __param,
         __impl::__external_temp_storage{__temp_storage, __temp_storage_bytes});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysIterator1,
-          typename _KeysIterator2>
+template <typename _SortConfig, typename _KernelParam, typename _KeysIterator1, typename _KeysIterator2>
 std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator1> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -434,12 +506,11 @@ batched_stable_sort(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1
                     typename std::iterator_traits<_KeysIterator1>::difference_type __segment_size,
                     _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_out_iter<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_out_iter<_SortConfig>(
         __q, __keys_first, __keys_last, __keys_out_first, __segment_size, __param, __impl::__internal_temp_storage{});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysIterator1,
-          typename _KeysIterator2>
+template <typename _SortConfig, typename _KernelParam, typename _KeysIterator1, typename _KeysIterator2>
 std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator1> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -448,13 +519,13 @@ batched_stable_sort(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIterator1
                     typename std::iterator_traits<_KeysIterator1>::difference_type __segment_size, void* __temp_storage,
                     std::size_t __temp_storage_bytes, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_out_iter<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_out_iter<_SortConfig>(
         __q, __keys_first, __keys_last, __keys_out_first, __segment_size, __param,
         __impl::__external_temp_storage{__temp_storage, __temp_storage_bytes});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysRng1,
-          typename _ValsRng1, typename _KeysRng2, typename _ValsRng2>
+template <typename _SortConfig, typename _KernelParam, typename _KeysRng1, typename _ValsRng1, typename _KeysRng2,
+          typename _ValsRng2>
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng1> &&
                      !std::is_integral_v<std::decay_t<_KeysRng2>> && __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -462,14 +533,14 @@ batched_stable_sort_by_key(sycl::queue __q, _KeysRng1&& __keys_rng, _ValsRng1&& 
                            _ValsRng2&& __vals_out_rng, __impl::__rng_difference_t<_KeysRng1> __segment_size,
                            _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_by_key_out_rng<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_by_key_out_rng<_SortConfig>(
         __q, std::forward<_KeysRng1>(__keys_rng), std::forward<_ValsRng1>(__vals_rng),
         std::forward<_KeysRng2>(__keys_out_rng), std::forward<_ValsRng2>(__vals_out_rng), __segment_size, __param,
         __impl::__internal_temp_storage{});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysRng1,
-          typename _ValsRng1, typename _KeysRng2, typename _ValsRng2>
+template <typename _SortConfig, typename _KernelParam, typename _KeysRng1, typename _ValsRng1, typename _KeysRng2,
+          typename _ValsRng2>
 std::enable_if_t<!oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysRng1> &&
                      !std::is_integral_v<std::decay_t<_KeysRng2>> && __impl::__is_kernel_param_v<_KernelParam>,
                  sycl::event>
@@ -477,14 +548,14 @@ batched_stable_sort_by_key(sycl::queue __q, _KeysRng1&& __keys_rng, _ValsRng1&& 
                            _ValsRng2&& __vals_out_rng, __impl::__rng_difference_t<_KeysRng1> __segment_size,
                            void* __temp_storage, std::size_t __temp_storage_bytes, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_by_key_out_rng<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_by_key_out_rng<_SortConfig>(
         __q, std::forward<_KeysRng1>(__keys_rng), std::forward<_ValsRng1>(__vals_rng),
         std::forward<_KeysRng2>(__keys_out_rng), std::forward<_ValsRng2>(__vals_out_rng), __segment_size, __param,
         __impl::__external_temp_storage{__temp_storage, __temp_storage_bytes});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysIterator1,
-          typename _ValsIterator1, typename _KeysIterator2, typename _ValsIterator2>
+template <typename _SortConfig, typename _KernelParam, typename _KeysIterator1, typename _ValsIterator1,
+          typename _KeysIterator2, typename _ValsIterator2>
 std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator1> &&
                      oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator2> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
@@ -495,13 +566,13 @@ batched_stable_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIt
                            typename std::iterator_traits<_KeysIterator1>::difference_type __segment_size,
                            _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_by_key_out_iter<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_by_key_out_iter<_SortConfig>(
         __q, __keys_first, __keys_last, __vals_first, __keys_out_first, __vals_out_first, __segment_size, __param,
         __impl::__internal_temp_storage{});
 }
 
-template <typename _SortConfig, bool __is_ascending = true, typename _KernelParam, typename _KeysIterator1,
-          typename _ValsIterator1, typename _KeysIterator2, typename _ValsIterator2>
+template <typename _SortConfig, typename _KernelParam, typename _KeysIterator1, typename _ValsIterator1,
+          typename _KeysIterator2, typename _ValsIterator2>
 std::enable_if_t<oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator1> &&
                      oneapi::dpl::__internal::__is_type_with_iterator_traits_v<_KeysIterator2> &&
                      __impl::__is_kernel_param_v<_KernelParam>,
@@ -512,7 +583,7 @@ batched_stable_sort_by_key(sycl::queue __q, _KeysIterator1 __keys_first, _KeysIt
                            typename std::iterator_traits<_KeysIterator1>::difference_type __segment_size,
                            void* __temp_storage, std::size_t __temp_storage_bytes, _KernelParam __param = {})
 {
-    return __impl::__batched_stable_sort_by_key_out_iter<_SortConfig, __is_ascending>(
+    return __impl::__batched_stable_sort_by_key_out_iter<_SortConfig>(
         __q, __keys_first, __keys_last, __vals_first, __keys_out_first, __vals_out_first, __segment_size, __param,
         __impl::__external_temp_storage{__temp_storage, __temp_storage_bytes});
 }

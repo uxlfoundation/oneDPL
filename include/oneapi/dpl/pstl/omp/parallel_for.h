@@ -16,7 +16,9 @@
 #ifndef _ONEDPL_INTERNAL_OMP_PARALLEL_FOR_H
 #define _ONEDPL_INTERNAL_OMP_PARALLEL_FOR_H
 
-#include <cstddef>
+#include <algorithm> // std::max
+#include <cmath>     // std::sqrt
+#include <cstddef>   // std::size_t
 
 #include "util.h"
 
@@ -26,22 +28,6 @@ namespace dpl
 {
 namespace __omp_backend
 {
-
-template <class _Index, class _Fp>
-void
-__parallel_for_body(_Index __first, _Index __last, _Fp __f, std::size_t __grainsize)
-{
-    // initial partition of the iteration space into chunks
-    auto __policy =
-        oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, omp_get_num_threads(), __grainsize);
-
-    // To avoid over-subscription we use taskloop for the nested parallelism
-    _ONEDPL_PRAGMA(omp taskloop untied mergeable)
-    for (std::size_t __chunk = 0; __chunk < __policy.__n_chunks; ++__chunk)
-    {
-        oneapi::dpl::__omp_backend::__process_chunk(__policy, __first, __chunk, __f);
-    }
-}
 
 //------------------------------------------------------------------------
 // Notation:
@@ -53,20 +39,79 @@ void
 __parallel_for(oneapi::dpl::__internal::__omp_backend_tag, _ExecutionPolicy&&, _Index __first, _Index __last, _Fp __f,
                std::size_t __grainsize = __default_chunk_size)
 {
+    const std::size_t __n = __last - __first;
+    if (__n <= __grainsize)
+    {
+        __f(__first, __last);
+        return;
+    }
+
     if (omp_in_parallel())
     {
-        // we don't create a nested parallel region in an existing parallel
-        // region: just create tasks
-        oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grainsize);
+        // We don't create a nested parallel region in an existing parallel region:
+        // use taskloop instead to avoid over-subscription
+        const auto __shape =
+            oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, omp_get_num_threads(), __grainsize);
+
+        _ONEDPL_PRAGMA(omp taskloop untied mergeable)
+        for (std::size_t __chunk = 0; __chunk < __shape.__n_chunks; ++__chunk)
+        {
+            oneapi::dpl::__omp_backend::__process_chunk(__shape, __first, __chunk, __f);
+        }
+        return;
+    }
+
+    // Empirical estimate:
+    // dynamic scheduling pays off once __chunk_partitioner can form the nominal number of chunks per thread.
+    // TODO: move this decision to __chunk_partitioner if it is beneficial in other patterns.
+    const std::size_t __num_threads = omp_get_max_threads();
+    if (__n <= __num_threads * oneapi::dpl::__omp_backend::__nominal_chunks_per_thread * __grainsize)
+    {
+        // Static scheduling has almost no cost per chunk, so finer-grained chunks can be used:
+        // they let a small input use more threads.
+        // 64 is chosen for vectorization even with vectors as wide as 512-bit and types as narrow as 8-bits.
+        constexpr std::size_t __static_chunk_size = 64;
+        const auto __shape = oneapi::dpl::__omp_backend::__chunk_partitioner(
+            __first, __last, __num_threads, std::min(__static_chunk_size, __grainsize));
+
+        // schedule(static, 1) is chosen over schedule(static) because it distributes chunks round-robin among threads.
+        // It improves performance with workloads that concentrate the work in some parts of the iteration space
+        // and with early-exit algorithms with first-match semantics.
+        // The overhead is minimal when the work is evenly distributed.
+        _ONEDPL_PRAGMA(omp parallel for schedule(static, 1))
+        for (std::size_t __chunk = 0; __chunk < __shape.__n_chunks; ++__chunk)
+        {
+            oneapi::dpl::__omp_backend::__process_chunk(__shape, __first, __chunk, __f);
+        }
     }
     else
     {
-        // in any case (nested or non-nested) one parallel region is created and
-        // only one thread creates a set of tasks
-        _ONEDPL_PRAGMA(omp parallel)
-        _ONEDPL_PRAGMA(omp single nowait)
+        const auto __shape =
+            oneapi::dpl::__omp_backend::__chunk_partitioner(__first, __last, __num_threads, __grainsize);
+
+        // Coarsen the dispatches by grouping several chunks once the chunks stop growing.
+        // It reduces the scheduling overhead as if the chunks continued growing,
+        // while the capped chunk size keeps early exits fine-grained.
+        // TODO: move it to __chunk_partitioner if it is beneficial in other patterns.
+        const double __chunks_per_nominal_dispatch =
+            static_cast<double>(__shape.__n_chunks) /
+            (__num_threads * oneapi::dpl::__omp_backend::__nominal_chunks_per_thread);
+        const std::size_t __chunks_per_dispatch =
+            std::max<std::size_t>(1, static_cast<std::size_t>(std::sqrt(__chunks_per_nominal_dispatch)));
+
+        // In libiomp, monotonic scheduling empirically shows better results
+        // even on CPUs with hybrid cores with uneven workload.
+        // In libgomp, there is no observable difference between monotonic and nonmonotonic modifiers.
+        // Generally, nonmonotonic scheduling should be more performant,
+        // thus enabling it by default with other implementations.
+#if defined(KMP_VERSION_MAJOR)
+        _ONEDPL_PRAGMA(omp parallel for schedule(monotonic : dynamic, __chunks_per_dispatch))
+#else
+        _ONEDPL_PRAGMA(omp parallel for schedule(nonmonotonic : dynamic, __chunks_per_dispatch))
+#endif
+        for (std::size_t __chunk = 0; __chunk < __shape.__n_chunks; ++__chunk)
         {
-            oneapi::dpl::__omp_backend::__parallel_for_body(__first, __last, __f, __grainsize);
+            oneapi::dpl::__omp_backend::__process_chunk(__shape, __first, __chunk, __f);
         }
     }
 }

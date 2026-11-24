@@ -128,6 +128,13 @@ struct __block_storage : public __device_storage<_T>
             return __data ? __data[__lidx] : __acc[__lidx];
         }
 
+        // The elements addressable through the view: __parallel_for checks its ranges are not empty in debug builds
+        std::size_t
+        size() const
+        {
+            return __block_sz + __offset;
+        }
+
         std::size_t
         __local_index(std::size_t __gidx)
         {

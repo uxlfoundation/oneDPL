@@ -111,10 +111,22 @@ struct __is_host_execution_policy<oneapi::dpl::execution::unsequenced_policy> : 
 {
 };
 
+//------------------------------------------------------------------------
+// simple utilities needed in *_defs.h files
+//------------------------------------------------------------------------
+
 template <class _ExecPolicy, class _T = void>
 using __enable_if_execution_policy =
     std::enable_if_t<oneapi::dpl::is_execution_policy_v<std::decay_t<_ExecPolicy>>, _T>;
 
+// Syntax-sugar helpers to attach std::enable_if etc. to return value types
+template <typename _T, typename...>
+using __returns = _T;
+
+template <typename... _Conditions>
+using __constrained = std::void_t<std::enable_if_t<_Conditions::value>...>;
+
+// TODO: check if __ref_or_copy should really be here
 template <typename _ExecPolicy, typename _T>
 struct __ref_or_copy_impl
 {
