@@ -146,6 +146,76 @@ algorithms; any of them can feed the segments files of this proposal.
 | Real graphs (SNAP) | yes | yes | yes, from tens to hundreds of MB | graph analytics literature |
 | Power-law generators | yes | yes | no | Graph500 |
 
+### Statistics of the real data sets
+
+To choose the parameters of the synthetic regimes, the table below gives the statistics of the segment lengths of the
+sixteen real inputs (the matrices and the two SNAP graphs above), computed from the row lengths that the benchmarks
+read. The percentiles are over the segments; cv is the coefficient of variation of the length (the standard deviation
+divided by the average).
+
+| Input | Elements | Segments | Length: avg | p10 / p50 / p90 / p99 | max | cv | Empty segments | Longest empty run |
+|---|---|---|---|---|---|---|---|---|
+| dense2 | 4,000,000 | 2,000 | 2,000 | 2,000 / 2,000 / 2,000 / 2,000 | 2,000 | 0.00 | 0 | 0 |
+| conf5_4-8x8-05 | 1,916,928 | 49,152 | 39.0 | 39 / 39 / 39 / 39 | 39 | 0.00 | 0 | 0 |
+| mc2depi | 2,100,225 | 525,825 | 4.0 | 4 / 4 / 4 / 4 | 4 | 0.02 | 0 | 0 |
+| pwtk | 11,634,424 | 217,918 | 53.4 | 54 / 54 / 54 / 66 | 180 | 0.09 | 0 | 0 |
+| shipsec1 | 7,813,404 | 140,874 | 55.5 | 36 / 54 / 72 / 90 | 102 | 0.20 | 0 | 0 |
+| cant | 4,007,383 | 62,451 | 64.2 | 49 / 74 / 76 / 76 | 78 | 0.22 | 0 | 0 |
+| consph | 6,010,480 | 83,334 | 72.1 | 45 / 81 / 81 / 81 | 81 | 0.26 | 0 | 0 |
+| pdb1HYS | 4,344,765 | 36,417 | 119 | 75 / 123 / 156 / 177 | 204 | 0.27 | 0 | 0 |
+| rma10 | 2,374,001 | 46,835 | 50.7 | 22 / 46 / 100 / 115 | 145 | 0.55 | 0 | 0 |
+| cop20k_A | 2,624,331 | 121,192 | 21.7 | 0 / 23 / 45 / 55 | 81 | 0.64 | 21,349 (17.6 %) | 21,349 |
+| mac_econ_fwd500 | 1,273,389 | 206,500 | 6.2 | 3 / 5 / 10 / 24 | 44 | 0.72 | 0 | 0 |
+| scircuit | 958,936 | 170,998 | 5.6 | 3 / 5 / 8 / 22 | 353 | 0.78 | 0 | 0 |
+| web-Google | 5,105,039 | 916,428 | 5.6 | 0 / 3 / 14 / 23 | 456 | 1.18 | 176,974 (19.3 %) | 9 |
+| rail4284 | 11,284,032 | 4,284 | 2,634 | 88 / 1,159 / 6,987 / 19,700 | 56,182 | 1.60 | 0 | 0 |
+| soc-LiveJournal1 | 68,993,773 | 4,847,571 | 14.2 | 0 / 4 / 36 / 142 | 20,293 | 2.54 | 539,119 (11.1 %) | 84 |
+| webbase-1M | 3,105,536 | 1,000,005 | 3.1 | 2 / 2 / 3 / 17 | 4,700 | 8.16 | 0 | 0 |
+
+Where the elements are matters for the work more than where the segments are: the next table gives the share of the
+elements, in percent, that lie in the segments of each length range.
+
+| Input | 1-3 | 4-15 | 16-63 | 64-255 | 256-1K | 1K-4K | 4K-16K | 16K-64K |
+|---|---|---|---|---|---|---|---|---|
+| dense2 |  |  |  |  |  | 100 |  |  |
+| conf5_4-8x8-05 |  |  | 100 |  |  |  |  |  |
+| mc2depi | <1 | 100 |  |  |  |  |  |  |
+| pwtk | <1 | <1 | 98 | 2 |  |  |  |  |
+| shipsec1 |  |  | 75 | 25 |  |  |  |  |
+| cant | <1 |  | 30 | 70 |  |  |  |  |
+| consph | <1 |  | 9 | 91 |  |  |  |  |
+| pdb1HYS |  |  | 3 | 97 |  |  |  |  |
+| rma10 |  | <1 | 53 | 47 |  |  |  |  |
+| cop20k_A |  | 2 | 96 | 1 |  |  |  |  |
+| mac_econ_fwd500 | 13 | 69 | 17 |  |  |  |  |  |
+| scircuit | 5 | 85 | 9 | 1 | <1 |  |  |  |
+| web-Google | 10 | 61 | 28 | 1 | <1 |  |  |  |
+| rail4284 | <1 | <1 | <1 | 1 | 6 | 28 | 49 | 16 |
+| soc-LiveJournal1 | 4 | 17 | 41 | 30 | 8 | <1 | <1 | <1 |
+| webbase-1M | 61 | 13 | 8 | 9 | 3 | 5 | <1 |  |
+
+Observations:
+
+- **Averages.** The average lengths range from 3 to about 2,600; five of the sixteen inputs have an average below 10
+  (`webbase-1M`, `mc2depi`, `scircuit`, `web-Google`, `mac_econ_fwd500`).
+- **Input size and length.** The input sizes span a factor of about 70 (from about 1 to 69 million elements) and the
+  averages a factor of about 850; the rank correlation between them is weak (0.45 over the sixteen inputs). The length
+  is set by the structure of the data rather than by its size, which supports sweeping the average at a fixed input
+  size, and the input size separately.
+- **Uniformity.** Half of the inputs are much narrower than the uniform distribution `[1, 2 * avg]`, whose cv is about
+  0.58: eight inputs have a cv of at most 0.27, and three of them have practically a single length.
+- **Empty segments.** Thirteen inputs have none. The graphs have 11 to 19 % of them, scattered (the longest run is 84
+  segments), while in `cop20k_A` all of its 17.6 % form one run.
+- **Heavy tails.** Four inputs have a maximum of 60 to 1,500 times the average. A maximum likelihood fit of a power law
+  to the lengths of at least 10 gives exponents from about 2 (`webbase-1M`, `soc-LiveJournal1`) to 3.4 (`web-Google`);
+  this is a rough estimate, without a test of how well a power law fits. Even where most segments are short, a
+  noticeable share of the elements can lie in long ones: in `webbase-1M`, 61 % of the elements are in segments of 1 to 3
+  elements, but 5 % are in segments of 1K to 4K.
+- **Frequency of use.** The collections tell which shapes exist, not how often an input size or a shape occurs in
+  applications: the Williams / Bell–Garland matrices were selected for diverse row structures, and the usage study lists
+  the kinds of applications but not their sizes. The statistics can therefore set the ranges of the regimes, but not
+  weights by frequency of use.
+
 ## Proposal
 
 ### Input regimes
@@ -153,12 +223,19 @@ algorithms; any of them can feed the segments files of this proposal.
 The benchmark suite of `reduce_by_segment` with offsets keeps its current synthetic regimes and adds:
 
 1. **An average length sweep** in the ModernGPU style: lengths uniform in `[1, 2 * avg]` for
-   `avg = 10, 20, 50, ..., 500K` at a fixed input size (`2^24` elements). It reuses the existing generator, which
-   already takes the bounds of the lengths, and only adds a list of regimes to the runner.
-2. **Empty segments**: the same sweep with lengths in `[0, 2 * avg]`. The generator must bound the number of segments,
-   which it currently assumes to be at most the input size.
-3. **A power-law regime**: Zipf-distributed lengths with an exponent and a cap, seeded deterministically.
-4. **Real segments from files**: the CSR row offsets of the 13 matrices of the Williams / Bell–Garland set, the
+   `avg = 2, 5, 10, 20, 50, ..., 500K` at a fixed input size (`2^24` elements); it starts below 10 because five of the
+   real inputs have such averages. It reuses the existing generator, which already takes the bounds of the lengths, and
+   only adds a list of regimes to the runner.
+2. **Narrow lengths**: the same averages with lengths uniform in `[0.75 * avg, 1.25 * avg]` (cv about 0.14) and with a
+   fixed length, like the half of the real inputs that are much narrower than the sweep above.
+3. **Empty segments**: the sweep with a given share of empty segments, 10 and 20 %, placed at random, as in the real
+   graphs (11 to 19 %); lengths in `[0, 2 * avg]` alone would give only about `1 / (2 * avg + 1)` of them. A long run of
+   empty segments, as in `cop20k_A`, is a regime of its own: one run of `R` empty segments among short ones. The
+   generator must bound the number of segments, which it currently assumes to be at most the input size.
+4. **A power-law regime**: Zipf-distributed lengths with the exponents 2, 2.5 and 3 (the range fitted to the real
+   graphs) and caps such that the maximum is 60 to 1,500 times the average, as in the real inputs with heavy tails,
+   seeded deterministically.
+5. **Real segments from files**: the CSR row offsets of the 13 matrices of the Williams / Bell–Garland set, the
    generated `dense2`, and SNAP graphs (`web-Google`, `soc-LiveJournal1`, optionally `com-Orkut`).
 
 The values are generated by the benchmark in all regimes; only the structure of the segments comes from a file.
