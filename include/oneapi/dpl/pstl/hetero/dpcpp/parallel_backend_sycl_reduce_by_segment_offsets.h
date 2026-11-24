@@ -1392,11 +1392,16 @@ struct __parallel_reduce_by_segment_offsets
 
     // Whether a device supports the atomics of the device scope, which SYCL does not require
     static bool
-    __has_device_scope_atomics(const sycl::device& __device)
+    __has_device_scope_atomics([[maybe_unused]] const sycl::device& __device)
     {
+#if _ONEDPL_SYCL2020_ATOMIC_MEMORY_SCOPE_CAPABILITIES_BROKEN
+        // The capabilities cannot be queried, so conservatively assume no support
+        return false;
+#else
         const std::vector<sycl::memory_scope> __scopes =
             __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
         return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
+#endif
     }
 
     // Short segments, a work-item each; returns the longest long-segment length, 0 if none
