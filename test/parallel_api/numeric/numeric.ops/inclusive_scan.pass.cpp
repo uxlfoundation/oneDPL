@@ -20,18 +20,19 @@
 
 using namespace TestUtils;
 
-template <typename In, typename Init, typename Out>
 struct test_inclusive_scan_with_plus
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
     std::enable_if_t<!TestUtils::is_reverse_v<Iterator1> || std::is_same_v<Iterator1, Iterator2>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Iterator3 /* expected_last */, Size n, [[maybe_unused]] T init, T trash)
+               Iterator3 expected_first, Size n, T init, T trash)
     {
         using namespace std;
-        Iterator3 orr;
+        std::fill_n(out_first, n, trash);
+
         // If the types are different, apply the init
         constexpr bool use_init = !std::is_same_v<Iterator1, Iterator2>;
+        Iterator3 orr;
         if constexpr (use_init)
         {
             inclusive_scan_serial(in_first, in_last, expected_first, std::plus<>{}, init);
@@ -44,15 +45,13 @@ struct test_inclusive_scan_with_plus
         }
         EXPECT_TRUE(out_last == orr, "inclusive_scan returned wrong iterator");
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan");
-        std::fill_n(out_first, n, trash);
     }
     // inclusive_scan with reverse_iterator between different iterator types results in a compilation error even if
     // the call should be valid. Please see: https://github.com/uxlfoundation/oneDPL/issues/2296
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
     std::enable_if_t<TestUtils::is_reverse_v<Iterator1> && !std::is_same_v<Iterator1, Iterator2>>
     operator()(Policy&& /*exec*/, Iterator1 /*in_first*/, Iterator1 /*in_last*/, Iterator2 /*out_first*/,
-               Iterator2 /*out_last*/, Iterator3 /*expected_first*/, Iterator3 /*expected_last*/, Size /*n*/,
-               T /*init*/, T /*trash*/)
+               Iterator2 /*out_last*/, Iterator3 /*expected_first*/, Size /*n*/, T /*init*/, T /*trash*/)
     {
     }
 };
@@ -65,12 +64,12 @@ test_with_plus(Init init, Out trash, Convert convert)
     {
         Sequence<In> in(n, convert);
         Sequence<Out> expected(n);
-        Sequence<Out> out(n, [&](std::int32_t) { return trash; });
+        Sequence<Out> out(n);
 
-        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
-        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(), out.begin(),
-                                    out.end(), expected.begin(), expected.end(), in.size(), init, trash);
+        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus(), in.begin(), in.end(), out.begin(), out.end(),
+                                    expected.begin(), in.size(), init, trash);
+        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus(), in.cbegin(), in.cend(), out.begin(), out.end(),
+                                    expected.begin(), in.size(), init, trash);
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
@@ -84,10 +83,9 @@ test_with_plus(Init init, Out trash, Convert convert)
 
     Sequence<In> in(n, convert);
     Sequence<Out> expected(n);
-    Sequence<Out> out(n, [&](std::int32_t) { return trash; });
-    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
-                                       out.begin(), out.end(), expected.begin(), expected.end(), in.size(), init,
-                                       trash);
+    Sequence<Out> out(n);
+    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus(), in.begin(), in.end(), out.begin(), out.end(),
+                                       expected.begin(), in.size(), init, trash);
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 
