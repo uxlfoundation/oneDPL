@@ -69,7 +69,6 @@
 #define _ONEDPL_SYCL2020_REQD_SUB_GROUP_SIZE_PRESENT          (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50300))
 #define _ONEDPL_SYCL2020_TARGET_PRESENT                       (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50400))
 #define _ONEDPL_SYCL2020_TARGET_DEVICE_PRESENT                (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50400))
-#define _ONEDPL_SYCL2020_ATOMIC_REF_PRESENT                   (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50500))
 #define _ONEDPL_SYCL2020_SUB_GROUP_PRESENT                    (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50700))
 #define _ONEDPL_SYCL2020_SUBGROUP_BARRIER_PRESENT             (!_ONEDPL_LIBSYCL_VERSION_LESS_THAN(50700))
 // 20201214 value corresponds to DPC++ 2021.1.2
@@ -104,6 +103,9 @@
 #define _ONEDPL_SYCL2020_SPAN_BROKEN (_ONEDPL_ACPP_VERSION != 0)
 // SYCL 2020 section 4.17.7 requires sycl::mul_hi, but ACPP does not provide it.
 #define _ONEDPL_SYCL2020_MUL_HI_BROKEN (_ONEDPL_ACPP_VERSION != 0)
+// SYCL 2020 section 4.6.4.4 requires info::device::atomic_memory_scope_capabilities, but ACPP does not provide it.
+// See https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2310
+#define _ONEDPL_SYCL2020_ATOMIC_MEMORY_SCOPE_CAPABILITIES_BROKEN (_ONEDPL_ACPP_VERSION != 0)
 // There are issues with some accessor constructors prior to DPC++ 2023.1 and with 2023.2.
 #define _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN                                                           \
     (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60100) || _ONEDPL_LIBSYCL_VERSION == 60200)
@@ -418,19 +420,6 @@ using __buffer_allocator =
 #else
 #    error "sycl::buffer_allocator is not supported, and no alternative is available"
 #endif
-
-template <typename _AtomicType, sycl::access::address_space _Space>
-#if _ONEDPL_SYCL2020_ATOMIC_REF_PRESENT
-using __atomic_ref = sycl::atomic_ref<_AtomicType, sycl::memory_order::relaxed, sycl::memory_scope::work_group, _Space>;
-#elif _ONEDPL_LIBSYCL_VERSION_LESS_THAN(50500)
-struct __atomic_ref : sycl::atomic<_AtomicType, _Space>
-{
-    explicit __atomic_ref(_AtomicType& ref)
-        : sycl::atomic<_AtomicType, _Space>(sycl::multi_ptr<_AtomicType, _Space>(&ref)){};
-};
-#else
-#    error "sycl::atomic_ref is not supported, and no alternative is available"
-#endif // _ONEDPL_SYCL2020_ATOMIC_REF_PRESENT
 
 template <typename _DataT, int _Dimensions = 1>
 using __local_accessor =

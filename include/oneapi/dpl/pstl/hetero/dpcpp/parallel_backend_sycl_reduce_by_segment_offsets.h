@@ -10,7 +10,7 @@
 #ifndef _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 #define _ONEDPL_PARALLEL_BACKEND_SYCL_REDUCE_BY_SEGMENT_OFFSETS_H
 
-#include <algorithm>   // std::min, std::clamp, std::find
+#include <algorithm>   // std::min, std::clamp
 #include <cmath>       // std::sqrt
 #include <cstddef>     // std::size_t
 #include <cstdint>     // std::uint8_t, std::uint32_t
@@ -19,10 +19,10 @@
 #include <tuple>       // std::get
 #include <type_traits> // std::is_signed_v, std::true_type
 #include <utility>     // std::move, std::forward
-#include <vector>      // std::vector
 
 #include "sycl_defs.h"
 #include "parallel_backend_sycl.h"
+#include "parallel_backend_sycl_utils.h"
 #include "unseq_backend_sycl.h"
 #include "utils_ranges_sycl.h"
 
@@ -189,15 +189,6 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
 
 template <typename _Name>
 class __segmented_reduce_fill_wrapper;
-
-// Whether a device supports the atomics of the device scope, which SYCL does not require
-inline bool
-__has_device_scope_atomics(sycl::device __device)
-{
-    const std::vector<sycl::memory_scope> __scopes =
-        __device.get_info<sycl::info::device::atomic_memory_scope_capabilities>();
-    return std::find(__scopes.begin(), __scopes.end(), sycl::memory_scope::device) != __scopes.end();
-}
 
 // The length of a segment within the input; a negatively sized segment is empty
 template <typename _Size>
@@ -428,7 +419,7 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     const _Size __short_segment_max = __segmented_reduce_chunk_tuning::__short_segment_max(__is_gpu);
 
     // Long segments on average, or no atomics for the short-segment pass: all the segments in chunks
-    if (__n / __m > __short_segment_max || !__has_device_scope_atomics(__device))
+    if (__n / __m > __short_segment_max || !oneapi::dpl::__internal::__has_device_scope_atomics(__device))
     {
         const _Size __max_length =
             __is_gpu
