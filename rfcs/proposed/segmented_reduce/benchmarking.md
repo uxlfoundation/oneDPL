@@ -13,7 +13,7 @@ Table of contents:
   - [Summary](#summary)
   - [Data sources and their users](#data-sources-and-their-users)
   - [Statistics of the real data sets](#statistics-of-the-real-data-sets)
-  - [Benchmarks of rocPRIM](#benchmarks-of-rocprim)
+  - [How the libraries measure segmented reduction](#how-the-libraries-measure-segmented-reduction)
 - [Proposal](#proposal)
   - [Input regimes](#input-regimes)
   - [File format of the segments](#file-format-of-the-segments)
@@ -307,7 +307,32 @@ Observations:
   generated from fitted distributions reproduce the performance on the real ones only with a high tolerance
   [[20]](#ref-20), [[22]](#ref-22). Hence the real inputs remain part of the suite.
 
-### Benchmarks of rocPRIM
+### How the libraries measure segmented reduction
+
+The libraries above measure their segmented reductions with different benchmark harnesses. The harnesses differ in what
+they time, in the state of the caches, and in when they stop, so the numbers of two libraries are comparable only where
+these choices agree. This section describes the harnesses whose code is open; the table at its end compares them.
+
+#### CUB and NVBench
+
+The benchmarks of `cub::DeviceSegmentedReduce` [[41]](#ref-41) run on NVBench [[42]](#ref-42), the benchmarking library
+of NVIDIA for CUDA kernels. The variable-size benchmark sweeps the input size over `2^16`, `2^20`, `2^24` and `2^28`
+elements and the maximum segment size over `2^1..2^16`, with the lengths drawn uniformly from `[1, MaxSegmentSize]`, for
+several value and offset types; other benchmarks cover fixed-size segments, a guaranteed maximum segment size, and
+argmin and argmax. The memory traffic counted for the bandwidth includes the values, the offsets and the results.
+
+NVBench takes cold measurements by default:
+
+- Before each sample, the L2 cache of the device is flushed, and each sample runs the benchmark once.
+- The GPU time of a sample is taken with CUDA events, while a blocking kernel holds the stream until the events and the
+  launch are queued, so that the time does not include the delay before the GPU starts.
+- The samples are collected until their relative standard deviation falls below 0.5 % or stabilizes, after at least 10
+  samples and 0.5 seconds of measured time, or until a timeout of 15 seconds; the GPU clock is watched, and throttled
+  samples are discarded.
+- Batch measurements, which run the benchmark back to back and report the average time, are disabled for the segmented
+  reduction (`exec_tag::no_batch`).
+
+#### rocPRIM, primbench and Google Benchmark
 
 rocPRIM, the AMD counterpart of CUB, provides `rocprim::segmented_reduce`, which assigns one block of threads to each
 segment [[36]](#ref-36). Its benchmark uses synthetic segments only [[37]](#ref-37). The input has a fixed size of 128
@@ -336,10 +361,35 @@ inputs differently [[39]](#ref-39): with Google Benchmark [[40]](#ref-40), after
 iteration timed a fixed batch of 10 calls with a pair of HIP events, without cache clearing, temperature control or a
 noise-based stop.
 
-Two differences matter for a comparison with oneDPL. In both versions, a batch of calls queued in one stream hides most
-of the fixed cost of a call, while the oneDPL benchmarks include it, because every call waits for its completion. And
-the cold cache of primbench differs from a warm-cache run. The numbers of the two suites are therefore comparable only
-on large inputs.
+#### ModernGPU
+
+ModernGPU 1.1 [[43]](#ref-43) benchmarks its segmented reduction with its own timer: CUDA events recorded around a loop
+of repeated calls, with a device synchronization at the start and at the end, e.g. 500 calls on an input of 20 million
+elements. The lengths are drawn uniformly up to twice the average, and the throughput is reported in elements per
+second. The caches are not flushed, so the repeated calls run warm, and the loop hides most of the fixed cost of a call.
+
+#### oneDPL
+
+The oneDPL benchmarks time every call on the host with a steady clock, and every call waits for its completion, so the
+fixed cost of a call is part of each sample. After warm-up runs, the number of trials is chosen to fill a target time,
+and the median is reported. A build option selects the state of the caches: warm, flushed before each trial, or with the
+input regenerated for each trial.
+
+#### Comparison
+
+| Harness | Timer | Calls per sample | Caches | Stop | Traffic counted |
+|---|---|---|---|---|---|
+| NVBench (CUB) | CUDA events, blocking kernel | 1 | cold (L2 flushed) | relative standard deviation below 0.5 %, or a timeout | values, offsets, results |
+| primbench (rocPRIM now) | HIP events, blocking kernel | a batch, doubled up to a minimum time | cold by default | coefficient of variation below 1 %, or a timeout | values |
+| Google Benchmark (rocPRIM before the move) | HIP events | a batch of 10 | warm | iterations chosen by Google Benchmark | values |
+| ModernGPU 1.1 | CUDA events | a loop of hundreds of calls | warm | a fixed number of calls | elements |
+| oneDPL | host steady clock | 1, synchronous | warm, flushed or regenerated | a target time after warm-up | time only |
+
+Two differences matter most for a comparison with oneDPL. A batch or a loop of calls queued in one stream hides most of
+the fixed cost of a call, while oneDPL and the cold NVBench samples include it. And a cold cache gives longer times than
+a warm one for inputs that fit into the cache. The numbers of different harnesses are therefore comparable only on large
+inputs, unless the same harness runs both libraries, as it does for the CUB counterpart of the oneDPL benchmarks (see
+[File format of the segments](#file-format-of-the-segments)).
 
 ## Proposal
 
@@ -664,3 +714,11 @@ and on a CPU device as SYCL devices; the new regimes 2 to 4 are not implemented 
     https://github.com/ROCm/rocPRIM/blob/14cd5e3c27a4b9ae7d510823a450723a03985ac0/benchmark/benchmark_device_segmented_reduce.parallel.hpp,
     https://github.com/ROCm/rocPRIM/blob/14cd5e3c27a4b9ae7d510823a450723a03985ac0/benchmark/benchmark_device_segmented_reduce.cpp
 40. <a id="ref-40"></a>Google. *Benchmark: a microbenchmark support library.* https://github.com/google/benchmark
+41. <a id="ref-41"></a>NVIDIA. *CUB benchmarks of the device-wide segmented reduction.* NVIDIA/cccl,
+    https://github.com/NVIDIA/cccl/tree/c0817a7ed2553d6989bf51e200db1966af90b68f/cub/benchmarks/bench/segmented_reduce
+42. <a id="ref-42"></a>NVIDIA. *NVBench: CUDA kernel benchmarking library.* https://github.com/NVIDIA/nvbench,
+    measurement options:
+    https://github.com/NVIDIA/nvbench/blob/73cdee8578f2c038d3213c3178ec290182a3cf7f/docs/cli_help.md
+43. <a id="ref-43"></a>S. Baxter. *ModernGPU 1.1: segmented reduction benchmark and timer.*
+    https://github.com/moderngpu/moderngpu/blob/4cddabe1201a325fc630ed4ce718583d35658f8e/benchmarksegreduce/benchmarksegreduce.cu,
+    https://github.com/moderngpu/moderngpu/blob/4cddabe1201a325fc630ed4ce718583d35658f8e/src/mgpucontext.cu
