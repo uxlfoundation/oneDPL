@@ -30,7 +30,10 @@ The [Offset-Based Segmented Reduction](README.md) RFC (#2848) adds a `reduce_by_
 whose segments are defined by `num_segments + 1` offsets. Its performance depends on the distribution of the segment
 lengths much more than on the input size alone: the work per segment ranges from nothing to the whole input, which
 makes the work hard to distribute evenly, and the hardest cases are skewed distributions, where a few very long
-segments coexist with many short or empty ones.
+segments coexist with many short or empty ones. The offsets may lie outside the input, and offsets that decrease are
+erroneous but safe (see the RFC): the implementation clamps every offset to `[0, input size]`, so a segment outside the
+input or with its end before its begin reduces nothing and gets the initial value, like an empty segment. Such segments
+therefore need no regime of their own.
 
 The benchmarks used so far generate the segments synthetically: the lengths are drawn uniformly from one or two ranges
 (e.g. 1..1024, 1..16, 2K..128K, 64K..256K, and a mixture of 95 % short and 5 % very long segments). Such regimes are
