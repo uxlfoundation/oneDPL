@@ -414,8 +414,8 @@ template <std::size_t CallNumber>
 void
 test_pieces()
 {
-    const std::int64_t n = 1016000;     // above the last offset for any piece of up to 2048 elements, below 2^20
-    const std::int64_t num_segments = 3108; // 3000 + 7 + 1 + 100 below
+    const std::int64_t n = 1016000;      // above the last offset for any piece of up to 2048 elements, below 2^20
+    const std::int64_t num_segments = 16108; // 16000 + 7 + 1 + 100 below: an average length below 64
 
     std::int64_t lane = 16, piece = 512; // the elements of a work-item and of a piece of a sub-group of 32 work-items
 #if TEST_DPCPP_BACKEND_PRESENT
@@ -423,6 +423,11 @@ test_pieces()
         TestUtils::get_dpcpp_test_policy().queue(), n);
     lane = geometry.__inputs_per_item;
     piece = lane * oneapi::dpl::__par_backend_hetero::__segmented_reduce_flat_tuning::__sub_group_size;
+    EXPECT_TRUE(!oneapi::dpl::__par_backend_hetero::__segmented_reduce_sub_group_tuning::__applies(std::size_t(n), std::size_t(num_segments)),
+                "test_pieces takes the path of a sub-group per segment instead of the flat one");
+    EXPECT_TRUE(!oneapi::dpl::__par_backend_hetero::__segmented_reduce_group_tuning::__applies(
+                    TestUtils::get_dpcpp_test_policy().queue(), n, num_segments),
+                "test_pieces takes the path of a work-group per segment instead of the flat one");
 #endif
 
     std::vector<std::int64_t> offsets{37};
@@ -434,10 +439,10 @@ test_pieces()
         for (std::int64_t i = 0; i < count; ++i)
             add(i % 4);
     };
-    add_tiny(3000);
+    add_tiny(16000);
     add(to_boundary(lane));
     add(to_boundary(piece));
-    add(1000000);
+    add(975000);
     add(0);
     add(0);
     add(0);
@@ -514,6 +519,32 @@ test_empty_runs()
             }
         }
     }
+}
+
+// Many segments of a moderate average length, which the GPU path of a sub-group per segment takes: lengths around and
+// below the sub-group size, not multiples of it, empty segments among them, one segment longer than the average, the
+// first offset above zero and the last one below the end of the input
+template <std::size_t CallNumber>
+void
+test_sub_group_per_segment()
+{
+    const std::vector<std::int64_t> lengths{0, 1, 2, 31, 32, 33, 63, 64, 65, 100, 127, 128, 129, 255, 300, 0, 17, 1000};
+    std::vector<std::int64_t> offsets{11};
+    for (std::size_t i = 0; i < 3 * 1024; ++i)
+        offsets.push_back(offsets.back() + lengths[i % lengths.size()]);
+    offsets.push_back(offsets.back() + 5000);
+    const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+    const std::int64_t n = offsets.back() + 23;
+#if TEST_DPCPP_BACKEND_PRESENT
+    EXPECT_TRUE(oneapi::dpl::__par_backend_hetero::__segmented_reduce_sub_group_tuning::__applies(std::size_t(n), std::size_t(num_segments)),
+                "test_sub_group_per_segment does not take the path of a sub-group per segment");
+#endif
+
+    Sequence<int> in(std::size_t(n), [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<std::int64_t> out(std::size_t(num_segments), [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                         out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                         std::plus<std::int64_t>{}, std::int64_t{-1});
 }
 
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
@@ -885,6 +916,7 @@ main()
     test_narrow_counting_input();
     test_pieces<47>();
     test_empty_runs<48>();
+    test_sub_group_per_segment<49>();
     test_small_types();
 
 #if TEST_DPCPP_BACKEND_PRESENT
