@@ -249,7 +249,9 @@ struct __combi_accessor
 {
   private:
     using __acc_t = sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
+    // optional to work around AdaptiveCPP bug with zero-sized buffers
     using __sycl_buf_t = std::optional<sycl::buffer<_T, 1>>;
+
     _T* __ptr = nullptr;
     __acc_t __acc;
 
@@ -261,13 +263,11 @@ struct __combi_accessor
         if (__fake)
         {
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
-            assert(__sycl_buf.has_value());
             return __acc_t(*__sycl_buf, __cgh, __prop_list);
 #else
             return __acc_t();
 #endif
         }
-        assert(__sycl_buf.has_value());
         if constexpr (__with_offset)
             return __acc_t(*__sycl_buf, __cgh, sycl::range{__sz}, sycl::id{__offset}, __prop_list);
         else
@@ -368,7 +368,6 @@ struct __device_storage
         }
         else
         {
-            assert(__sycl_buf.has_value());
             std::copy_n(__sycl_buf->get_host_access(sycl::read_only).begin() + __offset, __n, __dst);
         }
     }
@@ -384,7 +383,6 @@ struct __device_storage
             if constexpr (std::is_same_v<_RawState, __internal::__scratch_raw_state>)
             {
                 // use ranged reinterpret as a workaround for a SYCL implementation bug
-                assert(__sycl_buf.has_value());
                 __raw_st.__sycl_buf = __sycl_buf->template reinterpret<std::byte, 1>({__sycl_buf->size() * sizeof(_T)});
             }
             else

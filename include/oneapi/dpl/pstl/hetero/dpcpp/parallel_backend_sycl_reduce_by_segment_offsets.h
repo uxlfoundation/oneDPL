@@ -147,16 +147,13 @@ struct __atomic_result_storage : public __combined_storage<_ValueType>
         if (this->__usm_buf)
             __zero_done = __q.fill(this->__usm_buf.get(), _ValueType{}, 1);
         else
-        {
-            assert(this->__sycl_buf.has_value());
             this->__sycl_buf->get_host_access(sycl::write_only)[0] = _ValueType{};
-        }
     }
 
     __view
     __all_view()
     {
-        // checking whether the buffer is present is the simplest way to cover both "no device USM"
+        // checking the buffer size is the simplest way to cover both "no device USM"
         // and _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
         if (this->__sycl_buf.has_value())
             return __view{this->__usm_buf.get(), {*this->__sycl_buf}};

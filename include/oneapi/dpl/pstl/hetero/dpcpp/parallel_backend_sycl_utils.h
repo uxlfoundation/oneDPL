@@ -527,7 +527,6 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else
         {
-            assert(__sycl_buf.has_value());
             return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
         }
     }
