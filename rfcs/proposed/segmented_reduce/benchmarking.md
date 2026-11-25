@@ -346,7 +346,7 @@ inputs without empty rows, see below).
 
 ### Preparation of the data, step by step
 
-The data set is prepared once, by a script, from the following sources. The base URL of the SuiteSparse archives is
+The data set can be prepared once, by a script, from the following sources. The base URL of the SuiteSparse archives is
 `https://www.cise.ufl.edu/research/sparse/MM/` (the University of Florida mirror of the collection); behind a proxy,
 `http_proxy` and `https_proxy` must be set.
 
