@@ -169,8 +169,15 @@
 // ACPP_VERSION_MAJOR.
 #if defined(__ACPP__) || defined(__HIPSYCL__)
 #    define TEST_SYCL2020_SPAN_BROKEN 1
+// AdaptiveCpp's OpenMP runtime backend crashes with SIGFPE on zero-byte sycl::queue::memcpy().
+#    define TEST_ACPP_ZERO_SIZE_MEMCPY_BROKEN 1
+// AdaptiveCpp's sub-buffer constructor fails to compile because it omits initialization of its
+// non-default-constructible detail::property_carrying_object base class.
+#    define TEST_ACPP_SUB_BUFFER_CTOR_BROKEN 1
 #else
 #    define TEST_SYCL2020_SPAN_BROKEN 0
+#    define TEST_ACPP_ZERO_SIZE_MEMCPY_BROKEN 0
+#    define TEST_ACPP_SUB_BUFFER_CTOR_BROKEN 0
 #endif
 
 // oneapi::dpl::span is an alias for std::span where the standard library provides it, and for sycl::span

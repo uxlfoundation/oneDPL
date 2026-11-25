@@ -185,6 +185,7 @@ test_iterators_possibly_equal()
     EXPECT_FALSE(__internal::__iterators_possibly_equal(nullptr, oneapi::dpl::begin(buf2)),
                  "wrong __iterators_possibly_equal result");
 
+#if !TEST_ACPP_SUB_BUFFER_CTOR_BROKEN
     // sub - buffer vs it's "root" buffer (expect true)
     sycl::buffer<int, 1> buf11{buf1, sycl::range<1>{0}, sycl::range<1>{0}};
     EXPECT_TRUE(__internal::__iterators_possibly_equal(oneapi::dpl::end(buf1), oneapi::dpl::begin(buf11)),
@@ -194,6 +195,7 @@ test_iterators_possibly_equal()
     sycl::buffer<int, 1> buf12{buf1, sycl::range<1>{0}, sycl::range<1>{0}};
     EXPECT_TRUE(__internal::__iterators_possibly_equal(oneapi::dpl::begin(buf11), oneapi::dpl::end(buf12)),
                 "wrong __iterators_possibly_equal result");
+#endif
 
     // two sycl_iterators pointing to different elements in the same "root" buffer(expect false)
     auto it1next = it1 + 1;
