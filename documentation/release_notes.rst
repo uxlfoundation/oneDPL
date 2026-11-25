@@ -50,6 +50,8 @@ Fixed Issues
   and from range-based ``min``, ``max``, and ``minmax`` algorithms with ``unseq`` and ``par_unseq`` policies.
 - Fixed a compilation error in algorithms with device policies when the element type of an input sequence
   has an overloaded or deleted unary ``operator&``.
+- Fixed a synchronization issue that could cause incorrect results in ``histogram`` and
+  algorithms such as ``find``, ``any_of``, ``equal``, ``is_sorted`` and ``includes`` with device policies.
 
 Known Issues and Limitations
 ----------------------------
