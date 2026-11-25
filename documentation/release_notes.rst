@@ -58,6 +58,9 @@ Known Issues and Limitations
 New in This Release
 ^^^^^^^^^^^^^^^^^^^
 - ``experimental::reduce_by_segment`` executes serially with all standard-aligned execution policies.
+- When called with device policies, ``histogram`` and algorithms with early-exit semantics
+  such as ``find``, ``any_of``, ``equal``, ``is_sorted`` and ``includes`` require ``sycl::memory_scope::device`` capability,
+  which can be queried through ``sycl::info::device::atomic_memory_scope_capabilities``.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
