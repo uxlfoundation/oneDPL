@@ -210,13 +210,22 @@ SuiteSparse in the Matrix Market format, and SNAP provides plain edge lists, so 
 
 ### Statistics of the real data sets
 
-To choose the parameters of the synthetic regimes, the table below gives the statistics of the segment lengths of the
-sixteen real inputs (the matrices and the two SNAP graphs above), computed from the row lengths that the benchmarks
-read. The percentiles [[30]](#ref-30) are over the segments; cv is the coefficient of variation [[28]](#ref-28) of the
-length (the standard deviation divided by the average); Gini is the Gini coefficient [[29]](#ref-29) of the lengths (0
-when all segments have the same length, close to 1 when a few segments hold most of the elements); "Length 1" is the
-share of the segments of one element; "Longest empty run" is the largest number of consecutive empty segments. The rows
-are sorted by cv.
+To choose the parameters of the synthetic regimes, this section describes the segment lengths of the sixteen real
+inputs: the matrices and the two SNAP graphs above. All values are computed from the row lengths that the benchmarks
+read. The first table gives the distribution of the lengths over the segments, the second one the share of the
+elements by segment length, and the observations after them set the ranges of the [input regimes](#input-regimes) of
+the proposal.
+
+The columns of the first table:
+
+- The percentiles [[30]](#ref-30) are over the segments.
+- cv is the coefficient of variation [[28]](#ref-28) of the length: the standard deviation divided by the average.
+- Gini is the Gini coefficient [[29]](#ref-29) of the lengths: 0 when all segments have the same length, close to 1
+  when a few segments hold most of the elements.
+- "Length 1" is the share of the segments of one element.
+- "Longest empty run" is the largest number of consecutive empty segments.
+
+The rows are sorted by cv.
 
 | Input | Elements | Segments | Length: avg | p10 / p50 / p90 / p99 | max | cv | Gini | Length 1 | Empty segments | Longest empty run |
 |---|---|---|---|---|---|---|---|---|---|---|
