@@ -19,6 +19,7 @@ Table of contents:
   - [Preparation of the data, step by step](#preparation-of-the-data-step-by-step)
   - [Delivery of the data](#delivery-of-the-data)
   - [Metrics and reporting](#metrics-and-reporting)
+  - [What the time of a call consists of](#what-the-time-of-a-call-consists-of)
   - [Normalization of the times across devices](#normalization-of-the-times-across-devices)
   - [Prototype](#prototype)
 - [Open Questions](#open-questions)
@@ -419,6 +420,43 @@ average row length, with the tables of all values.
 
 The key-based `reduce_by_segment` cannot express empty segments, so on inputs with empty rows it produces fewer results
 and is excluded from the comparison there.
+
+### What the time of a call consists of
+
+The time of one call of a device algorithm consists of several stages:
+
+1. **Compilation of the kernels.** Unless the kernels are compiled ahead of time, they are compiled when they are used
+   for the first time.
+2. **Preparation on the host.** The implementation queries the properties of the device and chooses the kernels and
+   their geometry from the input size and the number of segments.
+3. **Allocation of temporary memory.** Some kernels need memory for partial results, allocated and freed in every call.
+4. **Launches of the kernels.** Each kernel has a fixed cost to start. Depending on the input, an implementation runs
+   one kernel or several: for example, one kernel for the segments, plus one more to combine the partial results of the
+   work-groups, or separate kernels for short and long segments.
+5. **Transfers between the host and the device**, when the input or the results are in the memory of the host.
+6. **The work on the data.** The kernels read the elements and the offsets, compute and write the results; the reading
+   and the computations overlap.
+7. **Reads back to the host during the call.** An implementation may read a small value back, e.g. the maximum length of
+   a segment to choose how to split the long ones, and wait for it.
+8. **Waiting for the completion.** The call returns when the results are ready, so its time includes the wait.
+
+The stages fall into three groups:
+
+- **Not measured at all: the compilation (1) and the transfers (5).** The benchmarks exclude the compilation by warm-up
+  runs and keep the input in the memory of the device. The compilation is paid once per application, and its cost
+  depends on the compiler and on the caching of the compiled kernels rather than on the algorithm. The transfers depend
+  on where the application keeps its data, and any implementation of the algorithm would pay the same for them.
+- **Normalized: what an ideal call needs.** One kernel launch, the reading of the bytes of the call and the wait for the
+  completion, i.e. parts of the stages 4, 6 and 8, are set by the device and its driver: the speed of the memory, the
+  size of the caches and the cost of a launch. Every implementation pays at least this much, and the code cannot make it
+  smaller. This part is the time `R(B)` of the ideal call below, and the normalization replaces it with the time of the
+  ideal call on the other device, so that both libraries are compared on the same hardware base.
+- **Measured as they are: the extra work of the implementation.** The preparation on the host (2), the allocations (3),
+  the launches beyond the first one (4), the computations and the memory traffic beyond the ideal reading (6), and the
+  reads back to the host (7) are the choices of the implementation. They are what the comparison has to show and what
+  the code can improve, so they are not normalized. They are still paid at the prices of the device where they run, e.g.
+  each extra launch costs what a launch costs on that device; this is one of the reasons why the normalized time is only
+  an estimate.
 
 ### Normalization of the times across devices
 
