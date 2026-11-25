@@ -49,29 +49,25 @@ uniq_kernel_index()
 }
 #endif
 
-template <typename Op, std::size_t CallNumber>
+template <typename Op, std::size_t... CallNumber>
 struct unique_kernel_name;
 
-template <typename T, typename = std::void_t<>>
-struct has_kernel_name : std::false_type
-{
-};
-
-template <typename T>
-struct has_kernel_name<T, std::void_t<typename T::kernel_name>> : std::true_type
-{
-};
-
-template <typename Policy, std::size_t CallNumber, typename = void>
+template <typename Op, std::size_t CallNumber, typename = void>
 struct new_kernel_name_impl
 {
-    using type = unique_kernel_name<std::decay_t<Policy>, CallNumber>;
+    using type = unique_kernel_name<Op, CallNumber>;
+};
+
+template <typename Op, std::size_t... Ns, std::size_t CallNumber>
+struct new_kernel_name_impl<unique_kernel_name<Op, Ns...>, CallNumber, void>
+{
+    using type = unique_kernel_name<Op, Ns..., CallNumber>;
 };
 
 template <typename Policy, std::size_t CallNumber>
-struct new_kernel_name_impl<Policy, CallNumber, std::enable_if_t<has_kernel_name<std::decay_t<Policy>>::value>>
+struct new_kernel_name_impl<Policy, CallNumber, std::void_t<typename std::decay_t<Policy>::kernel_name>>
 {
-    using type = unique_kernel_name<typename std::decay_t<Policy>::kernel_name, CallNumber>;
+    using type = typename new_kernel_name_impl<typename std::decay_t<Policy>::kernel_name, CallNumber>::type;
 };
 
 template <typename Policy, std::size_t CallNumber>
