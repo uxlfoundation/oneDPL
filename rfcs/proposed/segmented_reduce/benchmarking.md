@@ -440,23 +440,25 @@ The time of one call of a device algorithm consists of several stages:
    a segment to choose how to split the long ones, and wait for it.
 8. **Waiting for the completion.** The call returns when the results are ready, so its time includes the wait.
 
-The stages fall into three groups:
+The benchmarks measure the stages that belong to the algorithm: the launches of the kernels, the reading of the data,
+the work on it and the writing of the results, together with the preparation on the host, the allocations, the reads
+back to the host and the wait that the implementation needs for them. The compilation (1) and the transfers between the
+host and the device (5) are not measured: the benchmarks exclude the compilation by warm-up runs and keep the input in
+the memory of the device. The compilation is paid once per application, and its cost depends on the compiler and on the
+caching of the compiled kernels rather than on the algorithm; the transfers depend on where the application keeps its
+data, and any implementation of the algorithm would pay the same for them.
 
-- **Not measured at all: the compilation (1) and the transfers (5).** The benchmarks exclude the compilation by warm-up
-  runs and keep the input in the memory of the device. The compilation is paid once per application, and its cost
-  depends on the compiler and on the caching of the compiled kernels rather than on the algorithm. The transfers depend
-  on where the application keeps its data, and any implementation of the algorithm would pay the same for them.
-- **Normalized: what an ideal call needs.** One kernel launch, the reading of the bytes of the call and the wait for the
-  completion, i.e. parts of the stages 4, 6 and 8, are set by the device and its driver: the speed of the memory, the
-  size of the caches and the cost of a launch. Every implementation pays at least this much, and the code cannot make it
-  smaller. This part is the time `R(B)` of the ideal call below, and the normalization replaces it with the time of the
-  ideal call on the other device, so that both libraries are compared on the same hardware base.
-- **Measured as they are: the extra work of the implementation.** The preparation on the host (2), the allocations (3),
-  the launches beyond the first one (4), the computations and the memory traffic beyond the ideal reading (6), and the
-  reads back to the host (7) are the choices of the implementation. They are what the comparison has to show and what
-  the code can improve, so they are not normalized. They are still paid at the prices of the device where they run, e.g.
-  each extra launch costs what a launch costs on that device; this is one of the reasons why the normalized time is only
-  an estimate.
+The memory bandwidth of the compared GPUs differs, and on large inputs the reading of the data and the writing of the
+results take most of the time. To compare the efficiency of the algorithm itself, this transfer between the memory of
+the device and its compute units has to be separated from the rest and normalized. It is measured as the time `R(B)` of
+an ideal call that only reads the bytes of the call (below); such a call also contains one kernel launch and the wait,
+so the normalization replaces them too. Everything else, i.e. the preparation on the host, the allocations, the launches
+beyond the first one, the computations, the memory traffic beyond the ideal reading, and the reads back to the host, is
+the work of the algorithm and its implementation and is compared as measured.
+
+The normalization replaces only the ideal call. Everything beyond it, e.g. each extra kernel launch, an allocation or a
+read back to the host, is still paid at the prices of the device where it runs, which differ from those of the other
+device; so the normalized time is not the time of the same code on the other device, only an estimate of it.
 
 ### Normalization of the times across devices
 
