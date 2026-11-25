@@ -22,20 +22,20 @@
 
 using namespace TestUtils;
 
-template <bool in_place = false>
+template <typename, bool in_place = false>
 struct test_inclusive_scan_with_binary_op
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
-              typename BinaryOp, typename Gen>
+              typename BinaryOp, typename Prep>
     std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Size n, T init, BinaryOp binary_op, T trash, Gen g)
+               Iterator3 expected_first, Size n, T init, BinaryOp binary_op, Prep p)
     {
         using namespace std;
-        // due to possible in-place use (in_first == out_first), trash the output before generating the input
-        std::fill_n(out_first, n, trash);
         if constexpr (in_place)
-            fill_data(in_first, in_last, g);
+            fill_data(in_first, in_last, /*generator*/p);
+        else
+            std::fill_n(out_first, n, /*trash*/p);
 
         inclusive_scan_serial(in_first, in_last, expected_first, binary_op, init);
         auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op, init);
@@ -45,16 +45,16 @@ struct test_inclusive_scan_with_binary_op
     }
 
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
-              typename BinaryOp, typename Gen>
+              typename BinaryOp, typename Prep>
     std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Size n, BinaryOp binary_op, T trash, Gen g)
+               Iterator3 expected_first, Size n, BinaryOp binary_op, Prep p)
     {
         using namespace std;
-        // due to possible in-place use (in_first == out_first), trash the output before generating the input
-        std::fill_n(out_first, n, trash);
         if constexpr (in_place)
-            fill_data(in_first, in_last, g);
+            fill_data(in_first, in_last, /*generator*/p);
+        else
+            std::fill_n(out_first, n, /*trash*/p);
 
         inclusive_scan_serial(in_first, in_last, expected_first, binary_op);
         auto orr = inclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, binary_op);
@@ -70,20 +70,20 @@ struct test_inclusive_scan_with_binary_op
     }
 };
 
-template <bool in_place = false>
+template <typename, bool in_place = false>
 struct test_exclusive_scan_with_binary_op
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
-              typename BinaryOp, typename Gen>
+              typename BinaryOp, typename Prep>
     std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Size n, T init, BinaryOp binary_op, T trash, Gen g)
+               Iterator3 expected_first, Size n, T init, BinaryOp binary_op, T trash, Prep p)
     {
         using namespace std;
-        // due to possible in-place use (in_first == out_first), trash the output before generating the input
-        std::fill_n(out_first, n, trash);
         if constexpr (in_place)
-            fill_data(in_first, in_last, g);
+            fill_data(in_first, in_last, /*generator*/p);
+        else
+            std::fill_n(out_first, n, /*trash*/p);
 
         exclusive_scan_serial(in_first, in_last, expected_first, init, binary_op);
         auto orr = exclusive_scan(std::forward<Policy>(exec), in_first, in_last, out_first, init, binary_op);

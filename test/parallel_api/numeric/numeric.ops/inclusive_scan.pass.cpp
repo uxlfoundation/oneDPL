@@ -20,6 +20,7 @@
 
 using namespace TestUtils;
 
+template<typename...>
 struct test_inclusive_scan_with_plus
 {
     template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T>
@@ -30,9 +31,9 @@ struct test_inclusive_scan_with_plus
         using namespace std;
         std::fill_n(out_first, n, trash);
 
+        Iterator2 orr;
         // If the types are different, apply the init
         constexpr bool use_init = !std::is_same_v<Iterator1, Iterator2>;
-        Iterator2 orr;
         if constexpr (use_init)
         {
             inclusive_scan_serial(in_first, in_last, expected_first, std::plus<>{}, init);
@@ -66,10 +67,10 @@ test_with_plus(Init init, Out trash, Convert convert)
         Sequence<Out> expected(n);
         Sequence<Out> out(n);
 
-        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus(), in.begin(), in.end(), out.begin(), out.end(),
-                                    expected.begin(), in.size(), init, trash);
-        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus(), in.cbegin(), in.cend(), out.begin(), out.end(),
-                                    expected.begin(), in.size(), init, trash);
+        invoke_on_all_policies<0>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
+                                    out.begin(), out.end(), expected.begin(), in.size(), init, trash);
+        invoke_on_all_policies<1>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.cbegin(), in.cend(),
+                                    out.begin(), out.end(), expected.begin(), in.size(), init, trash);
     }
 
 #if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
@@ -84,8 +85,8 @@ test_with_plus(Init init, Out trash, Convert convert)
     Sequence<In> in(n, convert);
     Sequence<Out> expected(n);
     Sequence<Out> out(n);
-    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus(), in.begin(), in.end(), out.begin(), out.end(),
-                                       expected.begin(), in.size(), init, trash);
+    invoke_on_all_hetero_policies<4>()(test_inclusive_scan_with_plus<In, Init, Out>(), in.begin(), in.end(),
+                                       out.begin(), out.end(), expected.begin(), in.size(), init, trash);
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
 }
 

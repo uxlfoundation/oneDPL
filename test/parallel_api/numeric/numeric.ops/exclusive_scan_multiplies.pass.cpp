@@ -35,16 +35,15 @@ test_with_multiplies()
         Sequence<T> out(n);
         Sequence<T> expected(n);
 
-        auto one = [](size_t /*index*/) { return 1; };
-        Sequence<T> in(n, one);
+        Sequence<T> in(n, [](size_t /*index*/) { return 1; });
         std::size_t counter = 0;
         std::generate_n(in.begin(), custom_item_count, [&counter]() { return (counter++) % 3 + 2; });
         std::default_random_engine gen{42};
         std::shuffle(in.begin(), in.end(), gen);
 
-        invoke_on_all_hetero_policies<21>()(test_exclusive_scan_with_binary_op<>(), in.begin(), in.end(),
+        invoke_on_all_hetero_policies<21>()(test_exclusive_scan_with_binary_op<T>(), in.begin(), in.end(),
                                             out.begin(), out.end(), expected.begin(), in.size(), init,
-                                            std::multiplies{}, T{0xDEAD}, one);
+                                            std::multiplies{}, T{0xDEAD});
     }
 #endif // TEST_DPCPP_BACKEND_PRESENT
 }
