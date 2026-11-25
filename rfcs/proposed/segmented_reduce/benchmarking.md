@@ -332,8 +332,9 @@ In the ROCm/rocm-libraries repository, where rocPRIM is developed now, the bench
 - One unmeasured call before the first batch warms up the kernel.
 
 Before rocPRIM moved into ROCm/rocm-libraries, its repository ROCm/rocPRIM, now marked as deprecated, measured the same
-inputs differently [[39]](#ref-39): with Google Benchmark, after 5 warm-up calls, each measured iteration timed a fixed
-batch of 10 calls with a pair of HIP events, without cache clearing, temperature control or a noise-based stop.
+inputs differently [[39]](#ref-39): with Google Benchmark [[40]](#ref-40), after 5 warm-up calls, each measured
+iteration timed a fixed batch of 10 calls with a pair of HIP events, without cache clearing, temperature control or a
+noise-based stop.
 
 Two differences matter for a comparison with oneDPL. In both versions, a batch of calls queued in one stream hides most
 of the fixed cost of a call, while the oneDPL benchmarks include it, because every call waits for its completion. And
@@ -662,3 +663,4 @@ and on a CPU device as SYCL devices; the new regimes 2 to 4 are not implemented 
     ROCm/rocm-libraries.* ROCm/rocPRIM (deprecated),
     https://github.com/ROCm/rocPRIM/blob/14cd5e3c27a4b9ae7d510823a450723a03985ac0/benchmark/benchmark_device_segmented_reduce.parallel.hpp,
     https://github.com/ROCm/rocPRIM/blob/14cd5e3c27a4b9ae7d510823a450723a03985ac0/benchmark/benchmark_device_segmented_reduce.cpp
+40. <a id="ref-40"></a>Google. *Benchmark: a microbenchmark support library.* https://github.com/google/benchmark
