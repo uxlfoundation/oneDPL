@@ -188,7 +188,7 @@ void test_empty_list_initialization_for_replace_copy_if()
     {
         sycl::buffer<int> buf(v);
         sycl::buffer<int> dest_buf(dest);
-        oneapi::dpl::replace_copy_if(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(dest_buf), [](auto x) { return x == 3; }, {});
+        oneapi::dpl::replace_copy_if(TestUtils::get_dpcpp_test_policy(), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), oneapi::dpl::begin(dest_buf), [](auto x) { return x == 3; }, {});
     }
     EXPECT_TRUE(dest == expected, "wrong effect from calling oneapi::dpl::replace_copy_if with empty list-initialized value and with `device_policy` policy");
 #endif

@@ -96,7 +96,7 @@ void test_empty_list_initialization()
     }
 #if TEST_DPCPP_BACKEND_PRESENT
     sycl::buffer<int> buf(v);
-    auto it = oneapi::dpl::find(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
+    auto it = oneapi::dpl::find(TestUtils::get_dpcpp_test_policy(), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
     EXPECT_TRUE(it.get_idx() == 7, "an empty list-initialized value is not found by oneapi::dpl::find with `device_policy` policy");
 #endif
 }

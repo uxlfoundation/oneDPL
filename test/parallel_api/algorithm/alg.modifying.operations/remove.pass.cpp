@@ -146,7 +146,7 @@ void test_empty_list_initialization()
     std::size_t idx = 0;
     {
         sycl::buffer<int> buf(v);
-        auto it = oneapi::dpl::remove(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
+        auto it = oneapi::dpl::remove(TestUtils::get_dpcpp_test_policy(), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
         idx = it.get_idx();
         EXPECT_TRUE(idx == 7, "not all empty list-initialized values are properly removed by oneapi::dpl::remove with `device_policy` policy");
     }

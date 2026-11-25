@@ -126,7 +126,7 @@ void test_empty_list_initialization_for_fill()
     std::vector<int> v{3,6,5,4,3,7,8,0,2,4};
     {
         sycl::buffer<int> buf(v);
-        oneapi::dpl::fill(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
+        oneapi::dpl::fill(TestUtils::get_dpcpp_test_policy<0>(), oneapi::dpl::begin(buf), oneapi::dpl::end(buf), {});
     }
     EXPECT_TRUE(std::count(v.begin(), v.end(), 0) == v.size(), "a sequence is not filled properly by oneapi::dpl::fill with `device_policy` policy");
 #endif
@@ -169,7 +169,7 @@ void test_empty_list_initialization_for_fill_n()
     std::size_t idx = 0;
     {
         sycl::buffer<int> buf(v);
-        auto it = oneapi::dpl::fill_n(oneapi::dpl::execution::dpcpp_default, oneapi::dpl::begin(buf), fill_number, {});
+        auto it = oneapi::dpl::fill_n(TestUtils::get_dpcpp_test_policy<1>(), oneapi::dpl::begin(buf), fill_number, {});
         idx = it.get_idx();
         EXPECT_TRUE(idx == fill_number, "an incorrect iterator returned from oneapi::dpl::fill_n with `device_policy` policy");
     }

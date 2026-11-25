@@ -58,8 +58,10 @@ if [[ "${BACKEND}" == "dpcpp_only" ]]; then
   EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DTEST_ONLY_HETERO_POLICIES"
 fi
 if [[ "${BACKEND}" == dpcpp* && "${CXX_COMPILER}" == "acpp" ]]; then
-  # Explicitly enable DPC++ backend for AdaptiveCpp, as it cannot be detected automatically
-  EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DONEDPL_USE_DPCPP_BACKEND=1"
+  # Explicitly enable DPC++ backend for AdaptiveCpp, as it cannot be detected automatically.
+  # Disable predefined policies to avoid static sycl::queue instances hitting an AdaptiveCpp
+  # shutdown-order bug in allocation_tracker::unregister_allocation.
+  EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -DONEDPL_USE_DPCPP_BACKEND=1 -DONEDPL_USE_PREDEFINED_POLICIES=0"
 fi
 if [[ "${CXX_COMPILER}" != "g++" && "${CXX_COMPILER}" != "acpp" ]]; then
   EXTRA_CXX_FLAGS="${EXTRA_CXX_FLAGS} -Wno-error=pass-failed"

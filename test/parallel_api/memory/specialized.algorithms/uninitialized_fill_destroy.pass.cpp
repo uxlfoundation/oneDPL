@@ -258,10 +258,11 @@ void test_empty_list_initialization_for_uninitialized_fill()
         EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `par_unseq` policy");
     }
 #if TEST_DPCPP_BACKEND_PRESENT
-    auto usm_deleter = [] (auto ptr) { sycl::free(ptr, oneapi::dpl::execution::dpcpp_default.queue()); };
+    auto policy = TestUtils::get_dpcpp_test_policy<0>();
+    auto usm_deleter = [&policy] (auto ptr) { sycl::free(ptr, policy.queue()); };
     using usm_deleter_type = decltype(usm_deleter);
-    std::unique_ptr<int, usm_deleter_type> ptr{sycl::malloc_shared<int>(size, oneapi::dpl::execution::dpcpp_default.queue()), usm_deleter};
-    oneapi::dpl::uninitialized_fill(oneapi::dpl::execution::dpcpp_default, ptr.get(), ptr.get() + size, {1});
+    std::unique_ptr<int, usm_deleter_type> ptr{sycl::malloc_shared<int>(size, policy.queue()), usm_deleter};
+    oneapi::dpl::uninitialized_fill(policy, ptr.get(), ptr.get() + size, {1});
     EXPECT_TRUE(std::count(ptr.get(), ptr.get() + size, 1) == size, "a sequence is not filled properly by oneapi::dpl::uninitialized_fill with `device_policy` policy");
     // no need to call destroy for a trivial type
 #endif
@@ -318,10 +319,11 @@ void test_empty_list_initialization_for_uninitialized_fill_n()
         EXPECT_TRUE(value_type::Count() == 0, "wrong effect of calling `oneapi::dpl::destroy with `par_unseq` policy");
     }
 #if TEST_DPCPP_BACKEND_PRESENT
-    auto usm_deleter = [] (auto ptr) { sycl::free(ptr, oneapi::dpl::execution::dpcpp_default.queue()); };
+    auto policy = TestUtils::get_dpcpp_test_policy<1>();
+    auto usm_deleter = [&policy] (auto ptr) { sycl::free(ptr, policy.queue()); };
     using usm_deleter_type = decltype(usm_deleter);
-    std::unique_ptr<int, usm_deleter_type> ptr{sycl::malloc_shared<int>(size, oneapi::dpl::execution::dpcpp_default.queue()), usm_deleter};
-    oneapi::dpl::uninitialized_fill_n(oneapi::dpl::execution::dpcpp_default, ptr.get(), size, {1});
+    std::unique_ptr<int, usm_deleter_type> ptr{sycl::malloc_shared<int>(size, policy.queue()), usm_deleter};
+    oneapi::dpl::uninitialized_fill_n(policy, ptr.get(), size, {1});
     EXPECT_TRUE(std::count(ptr.get(), ptr.get() + size, 1) == size, "a sequence is not filled properly by oneapi::dpl::uninitialized_fill with `device_policy` policy");
     // no need to call destroy for a trivial type
 #endif
