@@ -29,6 +29,11 @@ New Features
   The improvement is more pronounced on CPUs with a higher core count.
 - Added support for Intel® GPU D270 to the experimental ``kt::gpu::radix_sort`` and
   ``kt::gpu::radix_sort_by_key`` algorithms.
+- Added ``oneapi::dpl::experimental::reduce_by_segment`` overloads with segment boundaries defined
+  by an array of indices. Added ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` feature test macro
+  to check availability of these overloads.
+- Improved performance of ``find_first_of`` with ``unseq`` and ``par_unseq`` policies
+  when the second input sequence has ~1M elements or more.
 
 Fixed Issues
 ------------
@@ -38,9 +43,20 @@ Fixed Issues
 - Fixed ``adjacent_difference`` converting the result of the default ``operator-`` to the input value type
   before writing it to the output sequence.
 - Fixed ``search_n`` converting the searched value to the input value type before comparison.
+- Fixed incorrect results of ``find_first_of`` algorithm, including its range-based variant,
+  with ``unseq`` and ``par_unseq`` policies: the returned match might be not the leftmost one.
+- Removed requirements on the value type not mandated by the C++ standard from ``min_element``,
+  ``max_element``, and ``minmax_element`` algorithms, including their range-based variants,
+  and from range-based ``min``, ``max``, and ``minmax`` algorithms with ``unseq`` and ``par_unseq`` policies.
+- Fixed a compilation error in algorithms with device policies when the element type of an input sequence
+  has an overloaded or deleted unary ``operator&``.
 
 Known Issues and Limitations
 ----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+- ``experimental::reduce_by_segment`` executes serially with all standard-aligned execution policies.
+
 Existing Issues
 ^^^^^^^^^^^^^^^
 See oneDPL Guide for other `restrictions and known limitations`_.
@@ -55,16 +71,10 @@ See oneDPL Guide for other `restrictions and known limitations`_.
 - ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
   Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
   to the device compiler.
-- Some algorithms in ``oneapi::dpl::ranges`` require more than their ``requires`` clauses specify:
-
-  * ``min``, ``max``, ``minmax``, ``min_element``, ``max_element``, ``minmax_element`` with host policies
-    require a default-initializable value type and an addressable comparator; ``min_element``,
-    ``max_element``, ``minmax_element`` also require a copyable value type, and
-    ``minmax_element`` also requires it to be constructible from and assignable from
-    the type obtained by dereferencing the range's iterator.
-  * ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union`` with both host
-    and device policies require an output value type constructible from input reference types and
-    a non-proxy output iterator.
+- ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union`` algorithms
+  in ``oneapi::dpl::ranges`` require more than their ``requires`` clauses specify: with both host
+  and device policies they require an output value type constructible from input reference types and
+  a non-proxy output iterator.
 
 
 New in 2022.14.0
