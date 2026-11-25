@@ -13,6 +13,7 @@ Table of contents:
   - [Summary](#summary)
   - [Data sources and their users](#data-sources-and-their-users)
   - [Statistics of the real data sets](#statistics-of-the-real-data-sets)
+  - [Benchmarks of rocPRIM](#benchmarks-of-rocprim)
 - [Proposal](#proposal)
   - [Input regimes](#input-regimes)
   - [File format of the segments](#file-format-of-the-segments)
@@ -305,6 +306,39 @@ Observations:
   cheaply in every run, but do not make the real inputs unnecessary: the CUB study described above found that inputs
   generated from fitted distributions reproduce the performance on the real ones only with a high tolerance
   [[20]](#ref-20), [[22]](#ref-22). Hence the real inputs remain part of the suite.
+
+### Benchmarks of rocPRIM
+
+rocPRIM, the AMD counterpart of CUB, provides `rocprim::segmented_reduce`, which assigns one block of threads to each
+segment [[36]](#ref-36). Its benchmark uses synthetic segments only [[37]](#ref-37). The input has a fixed size of 128
+MiB, the number of segments is 1, 10, 100, 1,000 or 10,000, and the lengths of the segments are drawn uniformly from
+`[0, 2 * avg]`, where `avg` is the input size divided by the number of segments. With 4-byte values, the average length
+is then at least about 3,300 elements, so the benchmark has no short segments, no skewed distributions and no real data.
+The reported throughput counts only the bytes of the input values, not those of the offsets and the results.
+
+In the ROCm/rocm-libraries repository, where rocPRIM is developed now, the benchmark runs on the primbench library
+[[37]](#ref-37), [[38]](#ref-38), which controls the measurement closely:
+
+- The cache of the GPU is cleared before each batch of calls by default, i.e. every batch is a cold run; an option keeps
+  the cache warm.
+- The calls are timed in batches: the number of calls in a batch is doubled until the batch takes at least a minimum
+  time on the GPU, 100 ms for this benchmark.
+- The measurement stops when the coefficient of variation [[28]](#ref-28) of the last 10 batch times is below 1 %, or
+  after a timeout for a noisy run.
+- The temperature of the GPU is kept in a fixed range, by default 50 to 60 °C, by warming or cooling the GPU before the
+  batches.
+- A small spinning kernel blocks the stream until the start event, the calls and the stop event are all queued, so that
+  the measured time does not include the delay before the GPU actually starts the calls.
+- One unmeasured call before the first batch warms up the kernel.
+
+Before rocPRIM moved into ROCm/rocm-libraries, its repository ROCm/rocPRIM, now marked as deprecated, measured the same
+inputs differently [[39]](#ref-39): with Google Benchmark, after 5 warm-up calls, each measured iteration timed a fixed
+batch of 10 calls with a pair of HIP events, without cache clearing, temperature control or a noise-based stop.
+
+Two differences matter for a comparison with oneDPL. In both versions, a batch of calls queued in one stream hides most
+of the fixed cost of a call, while the oneDPL benchmarks include it, because every call waits for its completion. And
+the cold cache of primbench differs from a warm-cache run. The numbers of the two suites are therefore comparable only
+on large inputs.
 
 ## Proposal
 
@@ -616,3 +650,15 @@ and on a CPU device as SYCL devices; the new regimes 2 to 4 are not implemented 
 34. <a id="ref-34"></a>*Entropy (information theory).* Wikipedia.
     https://en.wikipedia.org/wiki/Entropy_(information_theory)
 35. <a id="ref-35"></a>NVIDIA. *cuSPARSE.* https://docs.nvidia.com/cuda/cusparse/
+36. <a id="ref-36"></a>AMD. *rocPRIM: device-wide segmented reduction* (`rocprim::segmented_reduce`).
+    ROCm/rocm-libraries,
+    https://github.com/ROCm/rocm-libraries/blob/6c3abd43f019f2ffd8642f1847cdcbbf8d10e9f4/projects/rocprim/rocprim/include/rocprim/device/device_segmented_reduce.hpp#L83-L116
+37. <a id="ref-37"></a>AMD. *rocPRIM benchmark of the device-wide segmented reduction.* ROCm/rocm-libraries,
+    https://github.com/ROCm/rocm-libraries/blob/6c3abd43f019f2ffd8642f1847cdcbbf8d10e9f4/projects/rocprim/benchmark/benchmark_device_segmented_reduce.hpp,
+    https://github.com/ROCm/rocm-libraries/blob/6c3abd43f019f2ffd8642f1847cdcbbf8d10e9f4/projects/rocprim/benchmark/benchmark_device_segmented_reduce.cpp
+38. <a id="ref-38"></a>AMD. *primbench: a single-header HIP and CUDA benchmarking library.* ROCm/rocm-libraries,
+    https://github.com/ROCm/rocm-libraries/blob/6c3abd43f019f2ffd8642f1847cdcbbf8d10e9f4/shared/primbench/README.md
+39. <a id="ref-39"></a>AMD. *rocPRIM benchmark of the device-wide segmented reduction before the move to
+    ROCm/rocm-libraries.* ROCm/rocPRIM (deprecated),
+    https://github.com/ROCm/rocPRIM/blob/14cd5e3c27a4b9ae7d510823a450723a03985ac0/benchmark/benchmark_device_segmented_reduce.parallel.hpp,
+    https://github.com/ROCm/rocPRIM/blob/14cd5e3c27a4b9ae7d510823a450723a03985ac0/benchmark/benchmark_device_segmented_reduce.cpp
