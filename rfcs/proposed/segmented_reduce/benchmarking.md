@@ -92,10 +92,11 @@ graphs.
 
 ### Uniform lengths with a swept average (ModernGPU)
 
-ModernGPU [[20]](#ref-20) benchmarks its segmented reduction on segments whose lengths are drawn uniformly from `[1, 2 *
-avg]` (or `[0, 2 * avg]` when empty segments are allowed), so that the average length is `avg`. One series fixes the
-average at 500 and varies the input size; the other fixes the input size at 20M elements and sweeps the average over 10,
-20, 50, ..., 500K. The sweep compares implementations over the whole range of lengths rather than at a few points.
+ModernGPU [[20]](#ref-20) benchmarks its segmented reduction on segments whose lengths are drawn uniformly from
+`[1, 2 * avg]`, so that the average length is `avg`. The code also supports lengths in `[0, 2 * avg]`, i.e. empty
+segments, but the benchmark program runs only the variant without them [[43]](#ref-43). One series fixes the average at
+500 and varies the input size; the other fixes the input size at 20M elements and sweeps the average over 10, 20, 50,
+..., 500K. The sweep compares implementations over the whole range of lengths rather than at a few points.
 
 ### Fixed and bounded-uniform lengths (CUB)
 
@@ -180,7 +181,7 @@ segments, whether they need external data, and who uses them.
 
 | Approach | Covers skew | Empty segments | External data | Used by |
 |---|---|---|---|---|
-| Uniform, swept average | no | optional | no | ModernGPU |
+| Uniform, swept average | no | supported, not run | no | ModernGPU |
 | Fixed / bounded uniform | no | no | no | CUB benchmarks |
 | Real matrices (Williams / Bell–Garland set) | partly | one matrix | yes, ~240 MB of archives | SpMV literature, ModernGPU |
 | Real graphs (SNAP) | yes | yes | yes, from tens to hundreds of MB | graph analytics literature |
