@@ -246,12 +246,13 @@ The rows are sorted by cv.
 | soc-LiveJournal1 | 68,993,773 | 4,847,571 | 14.2 | 0 / 4 / 36 / 142 | 20,293 | 2.54 | 0.72 | 18.9 % | 539,119 (11.1 %) | 84 |
 | webbase-1M | 3,105,536 | 1,000,005 | 3.1 | 2 / 2 / 3 / 17 | 4,700 | 8.16 | 0.35 | 0.6 % | 0 | 0 |
 
-The time of a segmented reduction depends on both its elements and its segments. Every element is read and combined, and
-every segment adds work of its own: at least reading its bounds and writing its result, and often more, depending on how
-the implementation handles segments of different lengths. On top of that, every call has a fixed cost. How much each
-part weighs differs between implementations and inputs, so the statistics describe both the segments and the elements:
-the first table describes the segments, and the next one shows how the elements are spread over the segments of
-different lengths, as the share of the elements, in percent, that lie in the segments of each length range.
+The time of a segmented reduction depends on both its elements and its segments [[3]](#ref-3), [[6]](#ref-6). Every
+element is read and combined, and every segment adds work of its own: at least reading its bounds and writing its
+result, and often more, depending on how the implementation handles segments of different lengths. On top of that, every
+call has a fixed cost. How much each part weighs differs between implementations and inputs, so the statistics describe
+both the segments and the elements: the first table describes the segments, and the next one shows how the elements are
+spread over the segments of different lengths, as the share of the elements, in percent, that lie in the segments of
+each length range.
 
 | Input | 1-3 | 4-15 | 16-63 | 64-255 | 256-1K | 1K-4K | 4K-16K | 16K-64K |
 |---|---|---|---|---|---|---|---|---|
@@ -507,13 +508,13 @@ and on a CPU device as SYCL devices; the new regimes 2 to 4 are not implemented 
    Matrix-Vector Multiplication on Emerging Multicore Platforms.* Proceedings of SC'07, 2007.
    https://doi.org/10.1145/1362622.1362674
 3. <a id="ref-3"></a>D. Merrill and M. Garland. *Merge-Based Parallel Sparse Matrix-Vector Multiplication.* Proceedings
-   of SC'16, 2016. https://doi.org/10.1109/SC.2016.57
+   of SC'16, 2016. https://doi.org/10.1109/SC.2016.57, abstract and preprint: https://github.com/dumerrill/merge-spmv
 4. <a id="ref-4"></a>T. A. Davis and Y. Hu. *The University of Florida Sparse Matrix Collection.* ACM Transactions on
    Mathematical Software 38(1), 2011. https://doi.org/10.1145/2049662.2049663, https://sparse.tamu.edu
 5. <a id="ref-5"></a>J. Leskovec and A. Krevl. *SNAP Datasets: Stanford Large Network Dataset Collection.* 2014.
    https://snap.stanford.edu/data
 6. <a id="ref-6"></a>S. Baxter. *ModernGPU.* NVIDIA Research. https://github.com/moderngpu/moderngpu (version 1.1:
-   `benchmarksegreduce`, `benchmarkspmvcsr`).
+   `benchmarksegreduce`, `benchmarkspmvcsr`); segmented reduction: https://moderngpu.github.io/segreduce.html
 7. <a id="ref-7"></a>D. Chakrabarti, Y. Zhan and C. Faloutsos. *R-MAT: A Recursive Model for Graph Mining.* Proceedings
    of the SIAM International Conference on Data Mining, 2004. https://doi.org/10.1137/1.9781611972740.43
 8. <a id="ref-8"></a>NVIDIA CCCL: CUB device-wide segmented reduction and its benchmarks. https://github.com/NVIDIA/cccl
