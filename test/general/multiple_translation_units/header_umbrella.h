@@ -27,7 +27,7 @@
 #include <oneapi/dpl/cstddef>
 #include <oneapi/dpl/cstring>
 
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DYNAMIC_SELECTION_AVAILABLE
 #   include <oneapi/dpl/dynamic_selection>
 #endif
 
@@ -35,7 +35,7 @@
 #include <oneapi/dpl/functional>
 #include <oneapi/dpl/iterator>
 
-#if TEST_DPCPP_BACKEND_PRESENT
+#if TEST_DPCPP_BACKEND_PRESENT && defined(__INTEL_LLVM_COMPILER)
 #   include <oneapi/dpl/experimental/kernel_templates>
 #endif
 
