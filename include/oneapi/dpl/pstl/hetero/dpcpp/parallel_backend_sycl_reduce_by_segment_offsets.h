@@ -206,22 +206,31 @@ struct __segmented_reduce_length
     }
 };
 
-// The number of chunks of a segment given by the pair of its offsets
+// The number of chunks of a segment given by the pair of its offsets, written by one work-item per segment.
+// The counts are scanned afterwards as a plain array: a unary operation with a run-time chunk length inside the scan
+// gives wrong results on AdaptiveCpp for CUDA (see #2924).
 template <typename _Size>
-struct __segmented_reduce_chunk_count
+struct __segmented_reduce_chunk_count_brick
 {
+    static constexpr std::uint8_t __iters_per_item = 1;
+    static constexpr std::uint8_t __vector_size = 1; // one segment per work-item
+
     _Size __n = {};          // the size of the input
     _Size __chunk_size = {}; // the length of a chunk
     _Size __min_length = {}; // the segments not longer than this have no chunks
 
-    template <typename _Bounds>
-    _Size
-    operator()(const _Bounds& __bounds) const
+    template <typename _IsFull, typename _Params, typename _Offsets, typename _Counts>
+    void
+    operator()(_IsFull, const std::size_t __idx, _Params, _Offsets __offsets, _Counts __counts) const
     {
-        const _Size __length = __segmented_reduce_length<_Size>{__n}(std::get<0>(__bounds), std::get<1>(__bounds));
-        return __length > __min_length ? oneapi::dpl::__internal::__dpl_ceiling_div(__length, __chunk_size) : _Size{0};
+        const _Size __length = __segmented_reduce_length<_Size>{__n}(__offsets[__idx], __offsets[__idx + 1]);
+        __counts[__idx] =
+            __length > __min_length ? oneapi::dpl::__internal::__dpl_ceiling_div(__length, __chunk_size) : _Size{0};
     }
 };
+
+template <typename _Name>
+class __segmented_reduce_count_wrapper;
 
 // Reduces one chunk of a long segment. The first chunk of a segment, its head, takes the remainder of its length and
 // starts from the initial value converted to the accumulator type; every other chunk has exactly __chunk_size elements
@@ -388,17 +397,21 @@ __parallel_reduce_by_segment_offsets(_BackendTag, _ExecutionPolicy&& __exec, _In
     auto __reduce_in_chunks = [&](_Size __min_length, bool __write_empty, _Size __max_length, _Size __max_segments) {
         const _Size __chunk_size = __segmented_reduce_chunk_tuning::__chunk_size(__is_gpu, __max_length);
 
-        // The end of the chunks of every segment: an inclusive scan of their numbers, computed from the pairs of
-        // the adjacent offsets. Its future keeps the temporary data of the scan until the partial results are
-        // combined, which waits for all three steps: each one starts on the device after the previous one. The
-        // temporary data are device USM or, without it, SYCL buffers.
+        // The number of chunks of every segment, then the end of the chunks of every segment: an inclusive scan of the
+        // numbers. Both steps wait for the previous one; the scan keeps the temporary data until the partial results
+        // are combined.
+        __block_storage<_Size, 0> __chunk_counts(__q, __m);
+        __parallel_for(_BackendTag{}, make_wrapped_policy<__segmented_reduce_count_wrapper>(__exec),
+                       __segmented_reduce_chunk_count_brick<_Size>{__n, __chunk_size, __min_length}, __m, __offsets,
+                       __chunk_counts.__all_view())
+            .event()
+            .wait_and_throw();
+
         __block_storage<_Size, 0> __chunk_ends(__q, __m);
         auto __scan = __parallel_transform_scan(
-            _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec),
-            oneapi::dpl::__ranges::make_zip_view(oneapi::dpl::__ranges::take_view_simple(__offsets, __m),
-                                                 oneapi::dpl::__ranges::drop_view_simple(__offsets, _Size{1})),
-            __chunk_ends.__all_view(), __m, __segmented_reduce_chunk_count<_Size>{__n, __chunk_size, __min_length},
-            unseq_backend::__no_init_value<_Size>{}, std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
+            _BackendTag{}, make_wrapped_policy<__segmented_reduce_scan_wrapper>(__exec), __chunk_counts.__all_view(),
+            __chunk_ends.__all_view(), __m, oneapi::dpl::identity{}, unseq_backend::__no_init_value<_Size>{},
+            std::plus<_Size>{}, /*_Inclusive=*/std::true_type{});
 
         // At most n / __chunk_size + 1 chunks per segment, unless the offsets are not ordered
         const _Size __num_partials = __n / __chunk_size + __max_segments + 1;

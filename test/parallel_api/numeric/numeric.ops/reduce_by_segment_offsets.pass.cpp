@@ -348,6 +348,24 @@ test_edge_segment_distributions()
     }
 }
 
+// More segments than the device implementation reduces with one work-group, and long segments among them: the chunk
+// counts of the long segments are scanned after the short ones. AdaptiveCpp for CUDA gave wrong results for such
+// inputs, see https://github.com/uxlfoundation/oneDPL/issues/2924
+template <std::size_t CallNumber>
+void
+test_many_long_segments()
+{
+    std::vector<int> offsets{0};
+    for (std::size_t i = 0; i < 2100; ++i)
+        offsets.push_back(offsets.back() + (i % 400 == 7 ? 2000 : 100));
+    const int num_segments = offsets.size() - 1;
+    const std::size_t n = offsets.back();
+    Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<int> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                         out.end(), offsets.begin(), num_segments, 5, std::plus<int>{}, -1);
+}
+
 // Fixed-length segments, by offsets computed on the fly, which users can write themselves; the last two segments
 // cross or lie beyond the end of the input
 template <std::size_t CallNumber>
@@ -709,6 +727,7 @@ main()
     test_input_bounds<43>();
     test_edge_segment_distributions<44>();
     test_fixed_length_segments<45>();
+    test_many_long_segments<46>();
     test_counting_input();
     test_narrow_counting_input();
     test_small_types();
