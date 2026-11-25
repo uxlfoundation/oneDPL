@@ -178,10 +178,12 @@ that the choice made here can be compared with common practice and the set can b
 [Open Questions](#open-questions)).
 
 For each collection, the table gives where to get it, what it contains, and who uses it, with references to the
-publications or the code. The last column matters for comparisons: on the same inputs, our results can be put next to
-the published ones. Many of the graphs of these collections are also available in SuiteSparse in the Matrix Market
-format, and SNAP provides plain edge lists, so the conversion described in the [Proposal](#proposal) can read them. The
-Graph500 generator is different: it produces graphs instead of storing them.
+publications or the code. The last column shows which inputs are common in the literature. Using the same inputs lets us
+relate our results to what is known about them, e.g. which of them are hard to balance, and run other libraries, such as
+CUB or ModernGPU, on exactly the same segments. The published numbers themselves are not directly comparable: they are
+mostly for SpMV or graph algorithms, on other hardware. Many of the graphs of these collections are also available in
+SuiteSparse in the Matrix Market format, and SNAP provides plain edge lists, so the conversion described in the
+[Proposal](#proposal) can read them. The Graph500 generator is different: it produces graphs instead of storing them.
 
 | Source | Link | Content | Used, for example, by |
 |---|---|---|---|
