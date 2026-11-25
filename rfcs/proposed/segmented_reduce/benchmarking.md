@@ -26,14 +26,15 @@ Table of contents:
 
 ## Introduction
 
-The [Offset-Based Segmented Reduction](README.md) RFC (#2848) adds a `reduce_by_segment` overload
-whose segments are defined by `num_segments + 1` offsets. Its performance depends on the distribution of the segment
-lengths much more than on the input size alone: the work per segment ranges from nothing to the whole input, which
-makes the work hard to distribute evenly, and the hardest cases are skewed distributions, where a few very long
-segments coexist with many short or empty ones. The offsets may lie outside the input, and offsets that decrease are
-erroneous but safe (see the RFC): the implementation clamps every offset to `[0, input size]`, so a segment outside the
-input or with its end before its begin reduces nothing and gets the initial value, like an empty segment. Such segments
-therefore need no regime of their own.
+The [Offset-Based Segmented Reduction](README.md) RFC ([#2848](https://github.com/uxlfoundation/oneDPL/pull/2848)) adds
+a `reduce_by_segment` overload whose segments are defined by `num_segments + 1` offsets. Its performance depends on the
+distribution of the segment lengths much more than on the input size alone: the work per segment ranges from nothing to
+the whole input, which makes the work hard to distribute evenly, and the hardest cases are skewed distributions, where a
+few very long segments coexist with many short or empty ones. The offsets may lie outside the input, and offsets that
+decrease are erroneous but safe (see [Empty, Overlapping, Negatively Sized, and Unordered
+Segments](README.md#empty-overlapping-negatively-sized-and-unordered-segments) in the RFC): the implementation clamps
+every offset to `[0, input size]`, so a segment outside the input or with its end before its begin reduces nothing and
+gets the initial value, like an empty segment. Such segments therefore need no regime of their own.
 
 The benchmarks used so far generate the segments synthetically: the lengths are drawn uniformly from one or two ranges
 (e.g. 1..1024, 1..16, 2K..128K, 64K..256K, and a mixture of 95 % short and 5 % very long segments). Such regimes are
@@ -41,10 +42,12 @@ easy to reason about, but they miss irregular shapes of real data. Offset-define
 structure: ragged tensors, groups and clusters, rows of sparse matrices and neighborhoods of graph vertices, among the
 uses found in the [usage study](usage_pattern_study.md). Sparse matrices and graphs are well represented in real data
 collections and can serve as examples of real irregular length distributions: in their Compressed Sparse Row (CSR) form
-[23], the row offsets are exactly the offsets of this algorithm, and a row sum or a vertex degree computation is a
-segmented reduction over them. They have nearly uniform rows (finite element meshes), heavy-tailed rows (web and social
-graphs), and empty rows (isolated vertices, structurally singular matrices). The other uses of segmented reduction are
-covered by the synthetic regimes.
+[[23](#ref-23), [27](#ref-27)], the row offsets are exactly the offsets of this algorithm, and a row sum or a vertex
+degree computation is a segmented reduction over them. They have nearly uniform rows (finite element meshes
+[[32](#ref-32)]), heavy-tailed rows (web and social graphs [[24](#ref-24)]), and empty rows: isolated vertices, which
+have no edges [[26](#ref-26)], and structurally singular matrices, which are singular whatever the values of their
+nonzeros, e.g. because a row has no nonzeros at all [[25](#ref-25)]. The other uses of segmented reduction are covered
+by the synthetic regimes.
 
 For example, the matrix
 
@@ -54,8 +57,9 @@ A = | 0 0 0 0 |
     | 3 4 0 5 |
 ```
 
-is stored in the CSR form as three arrays: the nonzeros row by row, their columns, and the offsets at which the rows
-start:
+is stored in the CSR form as three arrays: the nonzeros row by row, the column of each of them (counted from 0), and
+the offsets at which the rows start. Row 0 has 1 in column 0 and 2 in column 2, row 1 has no nonzeros, and row 2 has 3,
+4 and 5 in columns 0, 1 and 3:
 
 ```
 values      = [1, 2, 3, 4, 5]
@@ -74,36 +78,35 @@ oneapi::dpl::experimental::reduce_by_segment(policy, values, values + 5, sums, 3
 A sparse matrix-vector product `y = A * x` reduces the products `values[k] * x[columns[k]]` over the same segments,
 and in a graph stored in this form a row is the neighborhood of a vertex. A benchmark needs only the row offsets: they
 define the segments, while the values can be generated. The data collections store the matrices as lists of entries
-(the Matrix Market coordinate format); the conversion described below builds the row offsets from them.
+(the Matrix Market coordinate format [[16](#ref-16)]); the conversion described below builds the row offsets from them.
 
 This document reviews how the literature and other libraries generate inputs for segmented reductions and the closely
-related sparse matrix-vector multiplication (SpMV), and proposes a benchmark design for oneDPL that combines
-parameterized synthetic distributions with a fixed set of real matrices and graphs.
+related sparse matrix-vector multiplication (SpMV) [[1](#ref-1), [2](#ref-2), [23](#ref-23)], and proposes a benchmark
+design for oneDPL that combines parameterized synthetic distributions with a fixed set of real matrices and graphs.
 
 ## Review of Data Generation Approaches
 
 ### Uniform lengths with a swept average (ModernGPU)
 
-ModernGPU [6] benchmarks its segmented reduction on segments whose lengths are drawn uniformly from `[1, 2 * avg]`
-(or `[0, 2 * avg]` when empty segments are allowed), so that the average length is `avg`. One series fixes the average
-at 500 and varies the input size; the other fixes the input size at 20M elements and sweeps the average over
-10, 20, 50, ..., 500K. The sweep compares implementations over the whole range of lengths rather than at a few
-points.
+ModernGPU [[6](#ref-6)] benchmarks its segmented reduction on segments whose lengths are drawn uniformly from `[1, 2 *
+avg]` (or `[0, 2 * avg]` when empty segments are allowed), so that the average length is `avg`. One series fixes the
+average at 500 and varies the input size; the other fixes the input size at 20M elements and sweeps the average over 10,
+20, 50, ..., 500K. The sweep compares implementations over the whole range of lengths rather than at a few points.
 
 ### Fixed and bounded-uniform lengths (CUB)
 
-The CUB benchmarks of CCCL [8] (`cub/benchmarks/bench/segmented_reduce`) measure `cub::DeviceSegmentedReduce` with
-fixed-size segments of `2^0..2^16` elements and with variable-size segments uniformly distributed in
-`[1, MaxSegmentSize]` for `MaxSegmentSize = 2^1..2^16`, on inputs of `2^16..2^28` elements. Like ModernGPU, they cover
-a wide range of lengths but no skewed distributions and no empty segments.
+The CUB benchmarks of CCCL [[8](#ref-8)] (`cub/benchmarks/bench/segmented_reduce`) measure `cub::DeviceSegmentedReduce`
+with fixed-size segments of `2^0..2^16` elements and with variable-size segments uniformly distributed in `[1,
+MaxSegmentSize]` for `MaxSegmentSize = 2^1..2^16`, on inputs of `2^16..2^28` elements. Like ModernGPU, they cover a wide
+range of lengths but no skewed distributions and no empty segments.
 
 ### Real sparse matrices (SpMV literature)
 
-Williams et al. [2] selected 14 matrices with diverse row structures for SpMV on multicore platforms; Bell and
-Garland [1] adopted the same set for GPUs, and ModernGPU [6] uses it in its CSR SpMV benchmark.
-All of them (except a generated dense 2000 x 2000 matrix) come from the University of Florida, now SuiteSparse,
-Matrix Collection [4]. In the terms of this algorithm, a row is a segment: "Rows" is the number of segments, "Nonzeros"
-is the input size, and "Row length" is the segment length, whose average is Nonzeros / Rows.
+Williams et al. [[2](#ref-2)] selected 14 matrices with diverse row structures for SpMV on multicore platforms; Bell and
+Garland [[1](#ref-1)] adopted the same set for GPUs, and ModernGPU [[6](#ref-6)] uses it in its CSR SpMV benchmark. All
+of them (except a generated dense 2000 x 2000 matrix) come from the University of Florida, now SuiteSparse, Matrix
+Collection [[4](#ref-4)]. In the terms of this algorithm, a row is a segment: "Rows" is the number of segments,
+"Nonzeros" is the input size, and "Row length" is the segment length, whose average is Nonzeros / Rows.
 
 | Matrix | Domain | Rows | Nonzeros | Row length: avg / max |
 |---|---|---|---|---|
@@ -122,9 +125,11 @@ is the input size, and "Row length" is the segment length, whose average is Nonz
 | webbase-1M | web graph | 1,000,005 | 3,105,536 | 3 / 4,700 |
 | rail4284 | linear programming | 4,284 | 11,284,032 | 2,634 / 56,182 |
 
-The counts are those of the CSR form, with symmetric matrices expanded to both triangles. Merrill and Garland [3]
-evaluate the merge-based SpMV of CUB on the whole collection, several thousand matrices, which removes the selection
-bias of a small set at the cost of benchmark time.
+FEM stands for the finite element method [[32](#ref-32)], QCD for quantum chromodynamics [[33](#ref-33)].
+
+The counts are those of the CSR form, with symmetric matrices expanded to both triangles. Merrill and Garland
+[[3](#ref-3)] evaluate the merge-based SpMV of CUB on the whole collection, several thousand matrices, which removes the
+selection bias of a small set at the cost of benchmark time.
 
 For this proposal, the set matters as a collection of length distributions rather than of matrices. It has nearly
 uniform lengths, with the maximum close to the average (`dense2`, `conf5_4-8x8-05`, `mc2depi`, `consph`, `cant`), a
@@ -134,10 +139,10 @@ segments (`cop20k_A`).
 
 ### Real graphs (SNAP)
 
-The Stanford Large Network Dataset Collection [5] provides social, web, communication and road networks whose degree
-distributions follow power laws: most rows are short, some are empty, and a few rows have hundreds to tens of
-thousands of entries.
-Several SNAP graphs are also part of SuiteSparse (group `SNAP`), for example:
+The Stanford Large Network Dataset Collection [[5](#ref-5)] provides social, web, communication and road networks whose
+degree distributions [[26](#ref-26)] follow power laws [[24](#ref-24)]: most rows are short, some are empty, and a few
+rows have hundreds to tens of thousands of entries. Several SNAP graphs are also part of SuiteSparse (group `SNAP`), for
+example:
 
 | Graph | Rows | Nonzeros | Row length: avg / max | Empty rows |
 |---|---|---|---|---|
@@ -146,22 +151,23 @@ Several SNAP graphs are also part of SuiteSparse (group `SNAP`), for example:
 
 ### Real workloads in the CUB benchmarks
 
-In 2026 the CUB team studied the same question for `DeviceSegmentedReduce` and `DeviceSegmentedSort` [17, 20]. They
-converted SuiteSparse matrices to stored segment offsets, keeping the order of the segments and the original values,
-analyzed 261 matrices [18], and selected a small set with the cuSPARSE team, together with a few customer workloads
-[19]. They characterized the segment sizes, including the share of empty and single-entry rows, the Gini coefficient and
-the entropy [21], fitted parametric distributions (those of C++ `<random>`) to them, and compared the performance on the
-generated and the real inputs. The conclusion was that parametric distributions are too weak to represent real data,
-especially for segmented sort, and that for segmented reduction they work only with a high tolerance; histograms did not
-save much space either, so they store the actual segment sizes [20, 22]. Their data, harness and results are internal;
-only the plans and the conclusions are public.
+In 2026 the CUB team studied the same question for `DeviceSegmentedReduce` and `DeviceSegmentedSort` [[17](#ref-17),
+[20](#ref-20)]. They converted SuiteSparse matrices to stored segment offsets, keeping the order of the segments and the
+original values, analyzed 261 matrices [[18](#ref-18)], and selected a small set with the team of cuSPARSE
+[[35](#ref-35)], together with a few customer workloads [[19](#ref-19)]. They characterized the segment sizes
+[[21](#ref-21)], including the share of empty and single-entry rows, the Gini coefficient [[29](#ref-29)] and the
+entropy [[34](#ref-34)], fitted parametric distributions (those of C++ `<random>`) to them, and compared the performance
+on the generated and the real inputs. The conclusion was that parametric distributions are too weak to represent real
+data, especially for segmented sort, and that for segmented reduction they work only with a high tolerance; histograms
+did not save much space either, so they store the actual segment sizes [[20](#ref-20), [22](#ref-22)]. Their data,
+harness and results are internal; only the plans and the conclusions are public.
 
 ### Synthetic power-law graphs (R-MAT, Graph500)
 
-R-MAT [7] and the Kronecker generator of Graph500 produce graphs with power-law degree distributions from a few
-parameters, at any scale and without external data. A simpler alternative for segment lengths alone is to draw them
-from a Zipf or Pareto distribution with an exponent and a cap. Both reproduce the skew of real graphs, but not their
-exact structure.
+R-MAT [[7](#ref-7)] and the Kronecker generator of Graph500 [[15](#ref-15)] produce graphs with power-law degree
+distributions from a few parameters, at any scale and without external data. A simpler alternative for segment lengths
+alone is to draw them from a Zipf or Pareto distribution [[24](#ref-24)] with an exponent and a cap. Both reproduce the
+skew of real graphs, but not their exact structure.
 
 ### Data sources and their users
 
@@ -170,12 +176,12 @@ algorithms; any of them can feed the segments files of this proposal.
 
 | Source | Link | Content | Used, for example, by |
 |---|---|---|---|
-| SuiteSparse Matrix Collection [4] | https://sparse.tamu.edu (files also on the mirror https://www.cise.ufl.edu/research/sparse/) | about 2,900 sparse matrices from science and engineering, plus graphs mirrored from other collections | Williams et al. [2], Bell and Garland [1], ModernGPU [6], Merrill and Garland (CUB SpMV) [3], CSR5 [9], the benchmarks of Ginkgo through its `ssget` tool [10] |
-| SNAP [5] | https://snap.stanford.edu/data | social, web, citation, communication, road and collaboration networks | graph analytics literature, Gunrock [11]; many SNAP graphs are mirrored in SuiteSparse (group `SNAP`) |
-| Laboratory for Web Algorithmics (LAW) [12] | https://law.di.unimi.it/datasets.php | large web and social crawls (e.g. `uk-2002`, `sk-2005`) | GAP Benchmark Suite (`sk-2005`) [13]; several LAW graphs are mirrored in SuiteSparse (group `LAW`) |
-| DIMACS Implementation Challenges, 9th and 10th [14] | https://sparse.tamu.edu/DIMACS10 (the 10th challenge graphs in SuiteSparse, e.g. `road_usa`; original site https://sites.cc.gatech.edu/dimacs10/) | road networks, meshes, clustering and partitioning instances | GAP Benchmark Suite (the road network of the USA from the 9th challenge) [13] |
-| Graph500 Kronecker generator [15] | https://graph500.org | synthetic power-law graphs of any scale, R-MAT style [7] | the Graph500 ranking, GAP Benchmark Suite (`kron`) [13] |
-| Matrix Market [16] | https://math.nist.gov/MatrixMarket | an older matrix collection and the coordinate file format used by SuiteSparse | the input format of most sparse libraries and of this proposal's conversion |
+| SuiteSparse Matrix Collection [[4](#ref-4)] | https://sparse.tamu.edu (files also on the mirror https://www.cise.ufl.edu/research/sparse/) | about 2,900 sparse matrices from science and engineering, plus graphs mirrored from other collections | Williams et al. [[2](#ref-2)], Bell and Garland [[1](#ref-1)], ModernGPU [[6](#ref-6)], Merrill and Garland (CUB SpMV) [[3](#ref-3)], CSR5 [[9](#ref-9)], the benchmarks of Ginkgo through its `ssget` tool [[10](#ref-10)] |
+| SNAP [[5](#ref-5)] | https://snap.stanford.edu/data | social, web, citation, communication, road and collaboration networks | graph analytics literature, Gunrock [[11](#ref-11)]; many SNAP graphs are mirrored in SuiteSparse (group `SNAP`) |
+| Laboratory for Web Algorithmics (LAW) [[12](#ref-12)] | https://law.di.unimi.it/datasets.php | large web and social crawls (e.g. `uk-2002`, `sk-2005`) | GAP Benchmark Suite (`sk-2005`) [[13](#ref-13)]; several LAW graphs are mirrored in SuiteSparse (group `LAW`) |
+| DIMACS Implementation Challenges, 9th and 10th [[14](#ref-14)] | https://sparse.tamu.edu/DIMACS10 (the 10th challenge graphs in SuiteSparse, e.g. `road_usa`; original site https://sites.cc.gatech.edu/dimacs10/) | road networks, meshes, clustering and partitioning instances | GAP Benchmark Suite (the road network of the USA from the 9th challenge) [[13](#ref-13)] |
+| Graph500 Kronecker generator [[15](#ref-15)] | https://graph500.org | synthetic power-law graphs of any scale, R-MAT style [[7](#ref-7)] | the Graph500 ranking, GAP Benchmark Suite (`kron`) [[13](#ref-13)] |
+| Matrix Market [[16](#ref-16)] | https://math.nist.gov/MatrixMarket | an older matrix collection and the coordinate file format used by SuiteSparse | the input format of most sparse libraries and of this proposal's conversion |
 
 ### Summary
 
@@ -191,10 +197,11 @@ algorithms; any of them can feed the segments files of this proposal.
 
 To choose the parameters of the synthetic regimes, the table below gives the statistics of the segment lengths of the
 sixteen real inputs (the matrices and the two SNAP graphs above), computed from the row lengths that the benchmarks
-read. The percentiles are over the segments; cv is the coefficient of variation of the length (the standard deviation
-divided by the average); Gini is the Gini coefficient of the lengths (0 when all segments have the same length,
-close to 1 when a few segments hold most of the elements); "Length 1" is the share of the segments of one element;
-"Longest empty run" is the largest number of consecutive empty segments. The rows are sorted by cv.
+read. The percentiles [[30](#ref-30)] are over the segments; cv is the coefficient of variation [[28](#ref-28)] of the
+length (the standard deviation divided by the average); Gini is the Gini coefficient [[29](#ref-29)] of the lengths (0
+when all segments have the same length, close to 1 when a few segments hold most of the elements); "Length 1" is the
+share of the segments of one element; "Longest empty run" is the largest number of consecutive empty segments. The rows
+are sorted by cv.
 
 | Input | Elements | Segments | Length: avg | p10 / p50 / p90 / p99 | max | cv | Gini | Length 1 | Empty segments | Longest empty run |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -242,15 +249,15 @@ Observations:
 - **Averages.** The average lengths range from 3 to about 2,600; five of the sixteen inputs have an average below 10
   (`webbase-1M`, `mc2depi`, `scircuit`, `web-Google`, `mac_econ_fwd500`).
 - **Input size and length.** The input sizes span a factor of about 70 (from about 1 to 69 million elements) and the
-  averages a factor of about 850; the rank correlation between them is weak (0.45 over the sixteen inputs). The length
-  is set by the structure of the data rather than by its size, which supports sweeping the average at a fixed input
-  size, and the input size separately.
+  averages a factor of about 850; the rank correlation [[31](#ref-31)] between them is weak (0.45 over the sixteen
+  inputs). The length is set by the structure of the data rather than by its size, which supports sweeping the average
+  at a fixed input size, and the input size separately.
 - **Uniformity.** Half of the inputs have much narrower lengths than the uniform distribution `[1, 2 * avg]`, whose cv
   is about 0.58: eight inputs have a cv of at most 0.27, and three of them have practically a single length.
 - **Empty segments.** Thirteen inputs have none. The graphs have 11 to 19 % of them, scattered (the longest run is 84
   segments), while in `cop20k_A` all of its 17.6 % form one run.
 - **Heavy tails.** Four inputs have a maximum of 60 to 1,500 times the average (`scircuit`, `web-Google`,
-  `soc-LiveJournal1`, `webbase-1M`). A maximum likelihood fit of a power law
+  `soc-LiveJournal1`, `webbase-1M`). A maximum likelihood fit of a power law [[24](#ref-24)]
   to the lengths of at least 10 gives exponents from about 2 (`webbase-1M`, `soc-LiveJournal1`) to 3.4 (`web-Google`);
   this is a rough estimate, without a test of how well a power law fits. Even where most segments are short, a
   noticeable share of the elements can lie in long ones: in `webbase-1M`, 61 % of the elements are in segments of 1 to 3
@@ -265,8 +272,8 @@ Observations:
   coefficient depends on the order of the segments, so the longest empty run is listed separately.
 - **Synthetic regimes and real inputs.** The statistics set the ranges of the synthetic regimes, which cover the shapes
   cheaply in every run, but do not make the real inputs unnecessary: the CUB study described above found that inputs
-  generated from fitted distributions reproduce the performance on the real ones only with a high tolerance [20, 22].
-  Hence the real inputs remain part of the suite.
+  generated from fitted distributions reproduce the performance on the real ones only with a high tolerance
+  [[20](#ref-20), [22](#ref-22)]. Hence the real inputs remain part of the suite.
 
 ## Proposal
 
@@ -285,9 +292,9 @@ The benchmark suite of `reduce_by_segment` with offsets keeps its current synthe
    empty segments, as in `cop20k_A`, is a regime of its own: one run of `R` empty segments among short ones. The
    generator must allow more segments than elements; it currently assumes that the number of segments is at most the
    input size.
-4. **A power-law regime**: Zipf-distributed lengths with the exponents 2, 2.5, 3 and 3.5 (the fit to the real inputs
-   gives about 2 to 3.4) and caps such that the maximum is 60 to 1,500 times the average, as in the real inputs with
-   heavy tails, seeded deterministically.
+4. **A power-law regime**: Zipf-distributed lengths [[24](#ref-24)] with the exponents 2, 2.5, 3 and 3.5 (the fit to the
+   real inputs gives about 2 to 3.4) and caps such that the maximum is 60 to 1,500 times the average, as in the real
+   inputs with heavy tails, seeded deterministically.
 5. **Real segments from files**: the CSR row offsets of the 13 matrices of the Williams / Bell–Garland set, the
    generated `dense2`, and SNAP graphs (`web-Google`, `soc-LiveJournal1`, optionally `com-Orkut`).
 
@@ -362,7 +369,8 @@ Two options are considered:
 - **A separate data repository included as a git submodule.** It holds the converted offsets files, the conversion
   script and the manifest, pinned by the submodule commit, so every run uses the same data. It requires hosting a new
   repository and a review of the licenses of the third-party data (the SuiteSparse Matrix Collection is distributed
-  under CC BY 4.0 and asks for a citation of [4]; the terms of the SNAP datasets must be checked).
+  under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and asks for a citation of [[4](#ref-4)]; the terms of
+  the SNAP datasets must be checked).
 - **Download on the benchmark machine with a persistent cache.** The runner downloads the archives once per machine,
   verifies their checksums and converts them. It needs no new repository, but depends on the availability of the
   external servers on the first run of every machine.
@@ -453,62 +461,88 @@ and on a CPU device as SYCL devices; the new regimes 2 to 4 are not implemented 
 - Where to host the data repository, and the licensing review of the SuiteSparse and SNAP data.
 - Which subset runs in continuous integration, given the time budget, and which runs only on demand.
 - Whether to extend the set beyond the Williams / Bell–Garland matrices, e.g. to a sample of the whole SuiteSparse
-  collection as in [3].
+  collection as in [[3](#ref-3)].
 - Value types (`float`, `double`, integer types) and offset types (32-bit and 64-bit) to measure.
 - Whether the same data sets should also drive the benchmarks of the host policies.
 - Whether to take the values of the real inputs from the matrices instead of generating them: for a sum of
   floating-point values it does not change the performance, but for operations whose work depends on the values (e.g.
   the minimum with its position) it may.
 - Whether to add inputs from applications that use segmented reductions (see the usage study), as the CUB set includes
-  customer workloads [19].
+  customer workloads [[19](#ref-19)].
 
 ## References
 
-1. N. Bell and M. Garland. *Implementing Sparse Matrix-Vector Multiplication on Throughput-Oriented Processors.*
-   Proceedings of SC'09, 2009. Also: *Efficient Sparse Matrix-Vector Multiplication on CUDA*, NVIDIA Technical Report
-   NVR-2008-004, 2008.
-2. S. Williams, L. Oliker, R. Vuduc, J. Shalf, K. Yelick and J. Demmel. *Optimization of Sparse Matrix-Vector
-   Multiplication on Emerging Multicore Platforms.* Proceedings of SC'07, 2007.
-3. D. Merrill and M. Garland. *Merge-Based Parallel Sparse Matrix-Vector Multiplication.* Proceedings of SC'16, 2016.
-4. T. A. Davis and Y. Hu. *The University of Florida Sparse Matrix Collection.* ACM Transactions on Mathematical
-   Software 38(1), 2011. https://sparse.tamu.edu
-5. J. Leskovec and A. Krevl. *SNAP Datasets: Stanford Large Network Dataset Collection.* 2014.
+1. <a id="ref-1"></a>N. Bell and M. Garland. *Implementing Sparse Matrix-Vector Multiplication on Throughput-Oriented
+   Processors.* Proceedings of SC'09, 2009. Also: *Efficient Sparse Matrix-Vector Multiplication on CUDA*, NVIDIA
+   Technical Report NVR-2008-004, 2008. https://doi.org/10.1145/1654059.1654078
+2. <a id="ref-2"></a>S. Williams, L. Oliker, R. Vuduc, J. Shalf, K. Yelick and J. Demmel. *Optimization of Sparse
+   Matrix-Vector Multiplication on Emerging Multicore Platforms.* Proceedings of SC'07, 2007.
+   https://doi.org/10.1145/1362622.1362674
+3. <a id="ref-3"></a>D. Merrill and M. Garland. *Merge-Based Parallel Sparse Matrix-Vector Multiplication.* Proceedings
+   of SC'16, 2016. https://doi.org/10.1109/SC.2016.57
+4. <a id="ref-4"></a>T. A. Davis and Y. Hu. *The University of Florida Sparse Matrix Collection.* ACM Transactions on
+   Mathematical Software 38(1), 2011. https://doi.org/10.1145/2049662.2049663, https://sparse.tamu.edu
+5. <a id="ref-5"></a>J. Leskovec and A. Krevl. *SNAP Datasets: Stanford Large Network Dataset Collection.* 2014.
    https://snap.stanford.edu/data
-6. S. Baxter. *ModernGPU.* NVIDIA Research. https://github.com/moderngpu/moderngpu (version 1.1:
+6. <a id="ref-6"></a>S. Baxter. *ModernGPU.* NVIDIA Research. https://github.com/moderngpu/moderngpu (version 1.1:
    `benchmarksegreduce`, `benchmarkspmvcsr`).
-7. D. Chakrabarti, Y. Zhan and C. Faloutsos. *R-MAT: A Recursive Model for Graph Mining.* Proceedings of the SIAM
-   International Conference on Data Mining, 2004.
-8. NVIDIA CCCL: CUB device-wide segmented reduction and its benchmarks. https://github.com/NVIDIA/cccl
+7. <a id="ref-7"></a>D. Chakrabarti, Y. Zhan and C. Faloutsos. *R-MAT: A Recursive Model for Graph Mining.* Proceedings
+   of the SIAM International Conference on Data Mining, 2004. https://doi.org/10.1137/1.9781611972740.43
+8. <a id="ref-8"></a>NVIDIA CCCL: CUB device-wide segmented reduction and its benchmarks. https://github.com/NVIDIA/cccl
    (`cub/benchmarks/bench/segmented_reduce`).
-9. W. Liu and B. Vinter. *CSR5: An Efficient Storage Format for Cross-Platform Sparse Matrix-Vector Multiplication.*
-    Proceedings of ICS'15, 2015.
-10. H. Anzt et al. *Ginkgo: A Modern Linear Operator Algebra Framework for High Performance Computing.* ACM Transactions
-    on Mathematical Software 48(1), 2022. https://github.com/ginkgo-project/ginkgo, `ssget`:
-    https://github.com/ginkgo-project/ssget
-11. Y. Wang, A. Davidson, Y. Pan, Y. Wu, A. Riffel and J. D. Owens. *Gunrock: A High-Performance Graph Processing
-    Library on the GPU.* Proceedings of PPoPP'16, 2016. https://github.com/gunrock/gunrock
-12. P. Boldi and S. Vigna. *The WebGraph Framework I: Compression Techniques.* Proceedings of WWW'04, 2004.
-13. S. Beamer, K. Asanović and D. Patterson. *The GAP Benchmark Suite.* arXiv:1508.03619, 2015.
-    https://github.com/sbeamer/gapbs
-14. C. Demetrescu, A. V. Goldberg and D. S. Johnson (eds.). *The Shortest Path Problem: Ninth DIMACS Implementation
-    Challenge.* DIMACS Series in Discrete Mathematics and Theoretical Computer Science 74, AMS, 2009.
-    D. A. Bader, H. Meyerhenke, P. Sanders and D. Wagner (eds.). *Graph Partitioning and Graph Clustering: Tenth DIMACS
-    Implementation Challenge.* Contemporary Mathematics 588, AMS, 2013.
-15. R. C. Murphy, K. B. Wheeler, B. W. Barrett and J. A. Ang. *Introducing the Graph 500.* Cray User Group, 2010.
-    https://graph500.org
-16. R. F. Boisvert, R. Pozo, K. Remington, R. F. Barrett and J. J. Dongarra. *Matrix Market: A Web Resource for Test
-    Matrix Collections.* In: Quality of Numerical Software, Chapman & Hall, 1997. https://math.nist.gov/MatrixMarket
-17. NVIDIA CCCL issue #11250. *[FEA]: collect segmented reduce benchmarks.* 2026.
+9. <a id="ref-9"></a>W. Liu and B. Vinter. *CSR5: An Efficient Storage Format for Cross-Platform Sparse Matrix-Vector
+    Multiplication.* Proceedings of ICS'15, 2015. https://doi.org/10.1145/2751205.2751209
+10. <a id="ref-10"></a>H. Anzt et al. *Ginkgo: A Modern Linear Operator Algebra Framework for High Performance
+    Computing.* ACM Transactions on Mathematical Software 48(1), 2022. https://doi.org/10.1145/3480935,
+    https://github.com/ginkgo-project/ginkgo, `ssget`: https://github.com/ginkgo-project/ssget
+11. <a id="ref-11"></a>Y. Wang, A. Davidson, Y. Pan, Y. Wu, A. Riffel and J. D. Owens. *Gunrock: A High-Performance
+    Graph Processing Library on the GPU.* Proceedings of PPoPP'16, 2016. https://doi.org/10.1145/2851141.2851145,
+    https://github.com/gunrock/gunrock
+12. <a id="ref-12"></a>P. Boldi and S. Vigna. *The WebGraph Framework I: Compression Techniques.* Proceedings of WWW'04,
+    2004. https://doi.org/10.1145/988672.988752
+13. <a id="ref-13"></a>S. Beamer, K. Asanović and D. Patterson. *The GAP Benchmark Suite.* arXiv:1508.03619, 2015.
+    https://arxiv.org/abs/1508.03619, https://github.com/sbeamer/gapbs
+14. <a id="ref-14"></a>C. Demetrescu, A. V. Goldberg and D. S. Johnson (eds.). *The Shortest Path Problem: Ninth DIMACS
+    Implementation Challenge.* DIMACS Series in Discrete Mathematics and Theoretical Computer Science 74, AMS, 2009.
+    https://doi.org/10.1090/dimacs/074 D. A. Bader, H. Meyerhenke, P. Sanders and D. Wagner (eds.). *Graph Partitioning
+    and Graph Clustering: Tenth DIMACS Implementation Challenge.* Contemporary Mathematics 588, AMS, 2013.
+    https://doi.org/10.1090/conm/588
+15. <a id="ref-15"></a>R. C. Murphy, K. B. Wheeler, B. W. Barrett and J. A. Ang. *Introducing the Graph 500.* Cray User
+    Group, 2010. https://graph500.org
+16. <a id="ref-16"></a>R. F. Boisvert, R. Pozo, K. Remington, R. F. Barrett and J. J. Dongarra. *Matrix Market: A Web
+    Resource for Test Matrix Collections.* In: Quality of Numerical Software, Chapman & Hall, 1997.
+    https://math.nist.gov/MatrixMarket
+17. <a id="ref-17"></a>NVIDIA CCCL issue #11250. *[FEA]: collect segmented reduce benchmarks.* 2026.
     https://github.com/NVIDIA/cccl/issues/11250
-18. NVIDIA CCCL issue #11024. *[FEA]: Add SuiteSparse Matrix Market workloads for segmented reduce.* 2026.
-    https://github.com/NVIDIA/cccl/issues/11024
-19. NVIDIA CCCL issue #11313. *[FEA]: Collect representative DeviceSegmentedReduce workloads.* 2026.
+18. <a id="ref-18"></a>NVIDIA CCCL issue #11024. *[FEA]: Add SuiteSparse Matrix Market workloads for segmented reduce.*
+    2026. https://github.com/NVIDIA/cccl/issues/11024
+19. <a id="ref-19"></a>NVIDIA CCCL issue #11313. *[FEA]: Collect representative DeviceSegmentedReduce workloads.* 2026.
     https://github.com/NVIDIA/cccl/issues/11313
-20. NVIDIA CCCL issue #11251. *[SPIKE]: Investigate a distribution-based workload model for segmented algorithm
-    benchmarks.* 2026. https://github.com/NVIDIA/cccl/issues/11251
-21. NVIDIA CCCL issue #11315. *[SPIKE]: Characterize real segmented-workload distributions.* 2026.
+20. <a id="ref-20"></a>NVIDIA CCCL issue #11251. *[SPIKE]: Investigate a distribution-based workload model for segmented
+    algorithm benchmarks.* 2026. https://github.com/NVIDIA/cccl/issues/11251
+21. <a id="ref-21"></a>NVIDIA CCCL issue #11315. *[SPIKE]: Characterize real segmented-workload distributions.* 2026.
     https://github.com/NVIDIA/cccl/issues/11315
-22. NVIDIA CCCL issue #11317. *[SPIKE]: Compare real and modeled segmented-algorithm performance.* 2026.
-    https://github.com/NVIDIA/cccl/issues/11317
-23. Y. Saad. *Iterative Methods for Sparse Linear Systems.* 2nd ed., SIAM, 2003, Chapter 3 (storage schemes of sparse
-    matrices). https://doi.org/10.1137/1.9780898718003
+22. <a id="ref-22"></a>NVIDIA CCCL issue #11317. *[SPIKE]: Compare real and modeled segmented-algorithm performance.*
+    2026. https://github.com/NVIDIA/cccl/issues/11317
+23. <a id="ref-23"></a>Y. Saad. *Iterative Methods for Sparse Linear Systems.* 2nd ed., SIAM, 2003, Chapter 3 (storage
+    schemes of sparse matrices). https://doi.org/10.1137/1.9780898718003
+24. <a id="ref-24"></a>A. Clauset, C. R. Shalizi and M. E. J. Newman. *Power-Law Distributions in Empirical Data.* SIAM
+    Review 51(4), 2009 (power laws, Zipf and Pareto distributions, heavy tails, the maximum likelihood fit with a lower
+    bound). https://doi.org/10.1137/070710111
+25. <a id="ref-25"></a>T. A. Davis. *Direct Methods for Sparse Linear Systems.* SIAM, 2006 (structural rank and
+    structurally singular matrices). https://doi.org/10.1137/1.9780898718881
+26. <a id="ref-26"></a>R. Diestel. *Graph Theory.* 5th ed., Springer, 2017, Chapter 1 (the degree of a vertex; a vertex
+    of degree 0 is isolated). https://doi.org/10.1007/978-3-662-53622-3. Also: *Degree (graph theory).* Wikipedia.
+    https://en.wikipedia.org/wiki/Degree_(graph_theory)
+27. <a id="ref-27"></a>*Sparse matrix: Compressed sparse row.* Wikipedia.
+    https://en.wikipedia.org/wiki/Sparse_matrix#Compressed_sparse_row_%28CSR,_CRS_or_Yale_format%29
+28. <a id="ref-28"></a>*Coefficient of variation.* Wikipedia. https://en.wikipedia.org/wiki/Coefficient_of_variation
+29. <a id="ref-29"></a>*Gini coefficient.* Wikipedia. https://en.wikipedia.org/wiki/Gini_coefficient
+30. <a id="ref-30"></a>*Percentile.* Wikipedia. https://en.wikipedia.org/wiki/Percentile
+31. <a id="ref-31"></a>*Spearman's rank correlation coefficient.* Wikipedia.
+    https://en.wikipedia.org/wiki/Spearman%27s_rank_correlation_coefficient
+32. <a id="ref-32"></a>*Finite element method.* Wikipedia. https://en.wikipedia.org/wiki/Finite_element_method
+33. <a id="ref-33"></a>*Quantum chromodynamics.* Wikipedia. https://en.wikipedia.org/wiki/Quantum_chromodynamics
+34. <a id="ref-34"></a>*Entropy (information theory).* Wikipedia.
+    https://en.wikipedia.org/wiki/Entropy_(information_theory)
+35. <a id="ref-35"></a>NVIDIA. *cuSPARSE.* https://docs.nvidia.com/cuda/cusparse/
