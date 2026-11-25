@@ -37,11 +37,11 @@ The benchmarks used so far generate the segments synthetically: the lengths are 
 easy to reason about, but they miss irregular shapes of real data. Offset-defined segments describe any ragged
 structure: ragged tensors, groups and clusters, rows of sparse matrices and neighborhoods of graph vertices, among the
 uses found in the [usage study](usage_pattern_study.md). Sparse matrices and graphs are well represented in real data
-collections and can serve as examples of real irregular length distributions: in their compressed sparse row (CSR) form,
-the row offsets are exactly the offsets of this algorithm, and a row sum or a vertex degree computation is a segmented
-reduction over them. They have nearly uniform rows (finite element meshes), heavy-tailed rows (web and social graphs),
-and empty rows (isolated vertices, structurally singular matrices). The other sources are represented by the synthetic
-regimes.
+collections and can serve as examples of real irregular length distributions: in their Compressed Sparse Row (CSR) form
+[23], the row offsets are exactly the offsets of this algorithm, and a row sum or a vertex degree computation is a
+segmented reduction over them. They have nearly uniform rows (finite element meshes), heavy-tailed rows (web and social
+graphs), and empty rows (isolated vertices, structurally singular matrices). The other uses of segmented reduction are
+covered by the synthetic regimes.
 
 For example, the matrix
 
@@ -104,7 +104,7 @@ is the input size, and "Row length" is the segment length, whose average is Nonz
 
 | Matrix | Domain | Rows | Nonzeros | Row length: avg / max |
 |---|---|---|---|---|
-| dense2 | dense (generated) | 2,000 | 4,000,000 | 2000 / 2000 |
+| dense2 | dense (generated) | 2,000 | 4,000,000 | 2,000 / 2,000 |
 | pdb1HYS | protein | 36,417 | 4,344,765 | 119 / 204 |
 | consph | FEM, spheres | 83,334 | 6,010,480 | 72 / 81 |
 | cant | FEM, cantilever | 62,451 | 4,007,383 | 64 / 78 |
@@ -125,13 +125,15 @@ bias of a small set at the cost of benchmark time.
 
 For this proposal, the set matters as a collection of length distributions rather than of matrices. It has nearly
 uniform lengths, with the maximum close to the average (`dense2`, `conf5_4-8x8-05`, `mc2depi`, `consph`, `cant`), a
-moderate spread (`pdb1HYS`, `shipsec1`, `rma10`, `pwtk`), heavy tails, with the maximum far above the average
-(`mac_econ_fwd500`, `rail4284`, `scircuit`, `webbase-1M`), and a long run of empty segments (`cop20k_A`).
+moderate spread (`pdb1HYS`, `shipsec1`, `rma10`, `pwtk`), a wide spread of short or very long rows (`mac_econ_fwd500`,
+`rail4284`), heavy tails, with the maximum far above the average (`scircuit`, `webbase-1M`), and a long run of empty
+segments (`cop20k_A`).
 
 ### Real graphs (SNAP)
 
 The Stanford Large Network Dataset Collection [5] provides social, web, communication and road networks whose degree
-distributions follow power laws: most rows are tiny or empty, and a few rows have tens of thousands of entries.
+distributions follow power laws: most rows are short, some are empty, and a few rows have hundreds to tens of
+thousands of entries.
 Several SNAP graphs are also part of SuiteSparse (group `SNAP`), for example:
 
 | Graph | Rows | Nonzeros | Row length: avg / max | Empty rows |
@@ -178,7 +180,7 @@ algorithms; any of them can feed the segments files of this proposal.
 |---|---|---|---|---|
 | Uniform, swept average | no | optional | no | ModernGPU |
 | Fixed / bounded uniform | no | no | no | CUB benchmarks |
-| Real matrices (Williams / Bell–Garland set) | partly | one matrix | yes, ~240 MB of archives | SpMV literature, ModernGPU, CUSP |
+| Real matrices (Williams / Bell–Garland set) | partly | one matrix | yes, ~240 MB of archives | SpMV literature, ModernGPU |
 | Real graphs (SNAP) | yes | yes | yes, from tens to hundreds of MB | graph analytics literature |
 | Power-law generators | yes | yes | no | Graph500 |
 
@@ -188,7 +190,8 @@ To choose the parameters of the synthetic regimes, the table below gives the sta
 sixteen real inputs (the matrices and the two SNAP graphs above), computed from the row lengths that the benchmarks
 read. The percentiles are over the segments; cv is the coefficient of variation of the length (the standard deviation
 divided by the average); Gini is the Gini coefficient of the lengths (0 when all segments have the same length,
-close to 1 when a few segments hold most of the elements); "Length 1" is the share of the segments of one element.
+close to 1 when a few segments hold most of the elements); "Length 1" is the share of the segments of one element;
+"Longest empty run" is the largest number of consecutive empty segments. The rows are sorted by cv.
 
 | Input | Elements | Segments | Length: avg | p10 / p50 / p90 / p99 | max | cv | Gini | Length 1 | Empty segments | Longest empty run |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -209,8 +212,8 @@ close to 1 when a few segments hold most of the elements); "Length 1" is the sha
 | soc-LiveJournal1 | 68,993,773 | 4,847,571 | 14.2 | 0 / 4 / 36 / 142 | 20,293 | 2.54 | 0.72 | 18.9 % | 539,119 (11.1 %) | 84 |
 | webbase-1M | 3,105,536 | 1,000,005 | 3.1 | 2 / 2 / 3 / 17 | 4,700 | 8.16 | 0.35 | 0.6 % | 0 | 0 |
 
-Where the elements are matters for the work more than where the segments are: the next table gives the share of the
-elements, in percent, that lie in the segments of each length range.
+For the work, what matters is how many elements lie in segments of each length, rather than how many segments there
+are: the next table gives the share of the elements, in percent, that lie in the segments of each length range.
 
 | Input | 1-3 | 4-15 | 16-63 | 64-255 | 256-1K | 1K-4K | 4K-16K | 16K-64K |
 |---|---|---|---|---|---|---|---|---|
@@ -239,11 +242,12 @@ Observations:
   averages a factor of about 850; the rank correlation between them is weak (0.45 over the sixteen inputs). The length
   is set by the structure of the data rather than by its size, which supports sweeping the average at a fixed input
   size, and the input size separately.
-- **Uniformity.** Half of the inputs are much narrower than the uniform distribution `[1, 2 * avg]`, whose cv is about
-  0.58: eight inputs have a cv of at most 0.27, and three of them have practically a single length.
+- **Uniformity.** Half of the inputs have much narrower lengths than the uniform distribution `[1, 2 * avg]`, whose cv
+  is about 0.58: eight inputs have a cv of at most 0.27, and three of them have practically a single length.
 - **Empty segments.** Thirteen inputs have none. The graphs have 11 to 19 % of them, scattered (the longest run is 84
   segments), while in `cop20k_A` all of its 17.6 % form one run.
-- **Heavy tails.** Four inputs have a maximum of 60 to 1,500 times the average. A maximum likelihood fit of a power law
+- **Heavy tails.** Four inputs have a maximum of 60 to 1,500 times the average (`scircuit`, `web-Google`,
+  `soc-LiveJournal1`, `webbase-1M`). A maximum likelihood fit of a power law
   to the lengths of at least 10 gives exponents from about 2 (`webbase-1M`, `soc-LiveJournal1`) to 3.4 (`web-Google`);
   this is a rough estimate, without a test of how well a power law fits. Even where most segments are short, a
   noticeable share of the elements can lie in long ones: in `webbase-1M`, 61 % of the elements are in segments of 1 to 3
@@ -254,12 +258,12 @@ Observations:
   weights by frequency of use.
 - **Inequality.** The Gini coefficient complements the ratio of the maximum to the average: `webbase-1M` has an extreme
   maximum but a moderate Gini (0.35), because its few long rows hold a small share of the elements, while in
-  `soc-LiveJournal1` (0.72) the inequality spans the whole set. Neither depends on the order of the segments, so the
-  longest empty run is listed separately.
+  `soc-LiveJournal1` (0.72) the elements are unevenly spread over the whole set. Neither the ratio nor the Gini
+  coefficient depends on the order of the segments, so the longest empty run is listed separately.
 - **Synthetic regimes and real inputs.** The statistics set the ranges of the synthetic regimes, which cover the shapes
   cheaply in every run, but do not make the real inputs unnecessary: the CUB study described above found that inputs
-  generated from fitted distributions do not reproduce the performance on the real ones [20, 22]. Hence the real inputs
-  stay available for on-demand runs.
+  generated from fitted distributions reproduce the performance on the real ones only with a high tolerance [20, 22].
+  Hence the real inputs remain part of the suite.
 
 ## Proposal
 
@@ -276,10 +280,11 @@ The benchmark suite of `reduce_by_segment` with offsets keeps its current synthe
 3. **Empty segments**: the sweep with a given share of empty segments, 10 and 20 %, placed at random, as in the real
    graphs (11 to 19 %); lengths in `[0, 2 * avg]` alone would give only about `1 / (2 * avg + 1)` of them. A long run of
    empty segments, as in `cop20k_A`, is a regime of its own: one run of `R` empty segments among short ones. The
-   generator must bound the number of segments, which it currently assumes to be at most the input size.
-4. **A power-law regime**: Zipf-distributed lengths with the exponents 2, 2.5 and 3 (the range fitted to the real
-   graphs) and caps such that the maximum is 60 to 1,500 times the average, as in the real inputs with heavy tails,
-   seeded deterministically.
+   generator must allow more segments than elements; it currently assumes that the number of segments is at most the
+   input size.
+4. **A power-law regime**: Zipf-distributed lengths with the exponents 2, 2.5, 3 and 3.5 (the fit to the real inputs
+   gives about 2 to 3.4) and caps such that the maximum is 60 to 1,500 times the average, as in the real inputs with
+   heavy tails, seeded deterministically.
 5. **Real segments from files**: the CSR row offsets of the 13 matrices of the Williams / Bell–Garland set, the
    generated `dense2`, and SNAP graphs (`web-Google`, `soc-LiveJournal1`, optionally `com-Orkut`).
 
@@ -297,7 +302,8 @@ maximum row length. The whole set above takes about 65 MB.
 
 The benchmark selects a file through an environment variable (e.g. `ONEDPLBENCH_SEGMENTS_FILE`); the input size is
 then taken from the file. The same mechanism serves the key-based `reduce_by_segment`, whose keys are derived from the
-offsets, and the CUB counterpart, so that all three run on identical segments.
+offsets, and the CUB counterpart, so that all three run on identical segments (the key-based version only on the
+inputs without empty rows, see below).
 
 ### Preparation of the data, step by step
 
@@ -335,8 +341,8 @@ The data set is prepared once, by a script, from the following sources. The base
    `symmetric`, `skew-symmetric` or `hermitian` and `i != j`, also increment the length of row `j`, so that the
    result describes the full matrix. The values are ignored.
 6. Check that the number of entry lines equals `<entries>` of the size line.
-7. Compute the `m + 1` offsets as the exclusive prefix sum of the row lengths, `m = <rows>`, and write the segments
-   file in the format above, rows without entries giving empty segments.
+7. Compute the `m + 1` offsets, `m = <rows>`: `offsets[0] = 0` and `offsets[r + 1] = offsets[r] + ` the length of row
+   `r`, and write the segments file in the format above, rows without entries giving empty segments.
 8. Generate `dense2` without a download: 2,000 segments of 2,000 elements.
 9. Write the manifest: per data set, the source URL, the checksum of the source archive and of the segments file, and
    the statistics of the rows.
@@ -385,8 +391,8 @@ Why a normalization is needed:
   any good code, so on large inputs the raw ratio mostly shows which GPU has faster memory.
 - For small inputs, the time is mostly the fixed cost of a call: starting the kernels and waiting for them. The speed of
   the memory does not matter there.
-- To find where our code should be improved, the speed of the memory has to be removed from the comparison of large
-  inputs, while small inputs stay as they are.
+- To find where our code should be improved, what the GPU itself costs (the speed of its memory and one kernel start)
+  has to be removed from the comparison, so that only the extra work of the code remains.
 
 The options:
 
@@ -396,7 +402,7 @@ The options:
 | Peak bandwidth from the specification | divide by the bandwidth from the data sheet | GPUs reach very different shares of it; wrong for small inputs |
 | Measured bandwidth for the whole time | scale the whole time by the ratio of the measured bandwidths | also scales the fixed cost, so it is wrong for small inputs |
 | Efficiency | compare `R(B) / T` of each library, each on its GPU | a share, not a time |
-| Normalization of the transfer only | replace the read time on our GPU with the read time on the other GPU, keep the fixed cost | the cost of one kernel start differs between the drivers and stays in the comparison |
+| Normalization of the transfer only | replace the read time on our GPU with the read time on the other GPU, keep the fixed cost | the kernel start of each driver stays in the comparison, while the ideal call below removes it |
 | Normalization of the ideal call | replace the time of an ideal call on our GPU with that on the other GPU (below) | an estimate, see the notes |
 
 The proposal is to show three numbers for every case: the raw time, the time normalized by the ideal call, and the
@@ -435,8 +441,9 @@ Notes:
 ### Prototype
 
 The format, the conversion of all the data sets above, the file mode of the existing `reduce_by_segment` and
-`reduce_by_segment_offsets` benchmarks, the data repository as a submodule and the report have been prototyped
-locally. The prototype runs all regimes on a GPU and on a CPU device as SYCL devices.
+`reduce_by_segment_offsets` benchmarks, the data repository as a submodule (one of the two delivery options above) and
+the report have been prototyped locally. The prototype runs the existing synthetic regimes and the real inputs on a GPU
+and on a CPU device as SYCL devices; the new regimes 2 to 4 are not implemented yet.
 
 ## Open Questions
 
@@ -500,3 +507,5 @@ locally. The prototype runs all regimes on a GPU and on a CPU device as SYCL dev
     https://github.com/NVIDIA/cccl/issues/11315
 22. NVIDIA CCCL issue #11317. *[SPIKE]: Compare real and modeled segmented-algorithm performance.* 2026.
     https://github.com/NVIDIA/cccl/issues/11317
+23. Y. Saad. *Iterative Methods for Sparse Linear Systems.* 2nd ed., SIAM, 2003, Chapter 3 (storage schemes of sparse
+    matrices). https://doi.org/10.1137/1.9780898718003
