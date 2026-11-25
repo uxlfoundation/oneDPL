@@ -44,7 +44,7 @@ struct test_inclusive_scan_with_binary_op
         EXPECT_EQ_N(expected_first, out_first, n, "wrong result from inclusive_scan with binary operator");
     }
 
-    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size, typename T,
+    template <typename Policy, typename Iterator1, typename Iterator2, typename Iterator3, typename Size,
               typename BinaryOp, typename Prep>
     std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
