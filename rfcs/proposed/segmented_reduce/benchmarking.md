@@ -172,8 +172,16 @@ skew of real graphs, but not their exact structure.
 
 ### Data sources and their users
 
-The collections below are the usual sources of real sparse matrices and graphs for benchmarking sparse and graph
-algorithms; any of them can feed the segments files of this proposal.
+The subsections above take their real inputs from two collections only: SuiteSparse for the matrices and SNAP for the
+graphs. Sparse and graph libraries use a few more collections for their benchmarks, and this section lists them, so
+that the choice made here can be compared with common practice and the set can be extended later (see
+[Open Questions](#open-questions)).
+
+For each collection, the table gives where to get it, what it contains, and who uses it, with references to the
+publications or the code. The last column matters for comparisons: on the same inputs, our results can be put next to
+the published ones. Many of the graphs of these collections are also available in SuiteSparse in the Matrix Market
+format, and SNAP provides plain edge lists, so the conversion described in the [Proposal](#proposal) can read them. The
+Graph500 generator is different: it produces graphs instead of storing them.
 
 | Source | Link | Content | Used, for example, by |
 |---|---|---|---|
