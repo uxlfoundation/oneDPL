@@ -50,7 +50,6 @@ Fixed Issues
   and from range-based ``min``, ``max``, and ``minmax`` algorithms with ``unseq`` and ``par_unseq`` policies.
 - Fixed a compilation error in algorithms with device policies when the element type of an input sequence
   has an overloaded or deleted unary ``operator&``.
-- Fixed ``-Wunknown-pragmas`` warnings issued by GCC when compiling oneDPL headers.
 
 Known Issues and Limitations
 ----------------------------
