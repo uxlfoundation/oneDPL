@@ -547,6 +547,35 @@ test_sub_group_per_segment()
                                          std::plus<std::int64_t>{}, std::int64_t{-1});
 }
 
+// Few long segments, which the GPU path of a work-group per segment takes in its large work-groups: one segment up to
+// the bound of that path, a few uneven ones with an empty one among them, and lengths not multiples of the
+// work-group size
+template <std::size_t CallNumber>
+void
+test_few_long_segments()
+{
+    const std::vector<std::vector<std::int64_t>> cases{{65536}, {20000, 0, 7, 13001}, {5000, 6000, 7000, 8000, 9001}};
+    for (const std::vector<std::int64_t>& lengths : cases)
+    {
+        std::vector<std::int64_t> offsets{0};
+        for (std::int64_t length : lengths)
+            offsets.push_back(offsets.back() + length);
+        const std::int64_t num_segments = std::int64_t(offsets.size() - 1);
+        const std::int64_t n = offsets.back();
+#if TEST_DPCPP_BACKEND_PRESENT
+        EXPECT_TRUE(oneapi::dpl::__par_backend_hetero::__segmented_reduce_group_tuning::__applies(
+                        TestUtils::get_dpcpp_test_policy().queue(), std::size_t(n), std::size_t(num_segments)),
+                    "test_few_long_segments does not take the path of a work-group per segment");
+#endif
+
+        Sequence<int> in(std::size_t(n), [](std::size_t i) { return int(i % 101) - 50; });
+        Sequence<std::int64_t> out(std::size_t(num_segments), [](std::size_t) { return -1; });
+        invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(),
+                                             out.end(), offsets.begin(), num_segments, std::int64_t{5},
+                                             std::plus<std::int64_t>{}, std::int64_t{-1});
+    }
+}
+
 // The input is the middle of a larger sequence, whose other elements are poison: a read out of the bounds of the input
 // changes a result
 constexpr std::size_t guard_length = 1000;
@@ -917,6 +946,7 @@ main()
     test_pieces<47>();
     test_empty_runs<48>();
     test_sub_group_per_segment<49>();
+    test_few_long_segments<50>();
     test_small_types();
 
 #if TEST_DPCPP_BACKEND_PRESENT

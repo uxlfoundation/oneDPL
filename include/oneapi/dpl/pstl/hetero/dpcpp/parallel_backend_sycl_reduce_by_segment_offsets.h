@@ -1065,8 +1065,9 @@ struct __segmented_reduce_group_tuning
     static constexpr std::size_t __max_input = std::size_t(1) << 12;
     static_assert(__max_input <= std::numeric_limits<std::uint32_t>::max());
 
-    // With fewer segments than __min_segments_beyond, a work-group per segment up to this many elements
-    static constexpr std::size_t __max_few_segments_input = std::size_t(1) << 14;
+    // With fewer segments than __min_segments_beyond, a work-group per segment up to this many elements, in the large
+    // work-groups below
+    static constexpr std::size_t __max_few_segments_input = std::size_t(1) << 16;
 
     // With at least this many segments, a work-group per segment up to this many elements and segments per hardware
     // thread
@@ -1085,6 +1086,13 @@ struct __segmented_reduce_group_tuning
     static constexpr std::size_t __max_long_average_length = 16384;
     static constexpr std::size_t __max_short_bound_segments = 4096;
     static constexpr std::size_t __max_long_average_input = std::size_t(1) << 25;
+
+    // Up to this many segments per GPU core of at least this average length, a larger work-group spreads each segment
+    // over more work-items while the device would otherwise stay mostly idle; with about as many segments as the device
+    // runs work-groups at once, the larger work-groups are slower
+    static constexpr std::size_t __large_work_group_size = 1024;
+    static constexpr std::size_t __min_large_average_length = 1024;
+    static constexpr std::size_t __max_large_segments_per_core = 2;
 
     static bool
     __applies(const sycl::queue& __q, const std::size_t __n, const std::size_t __m)
@@ -1111,11 +1119,20 @@ struct __segmented_reduce_group_tuning
                __m <= __max_segments_per_core * __compute_units.__num_xe_cores;
     }
 
-    // A power of two about the average segment length within the bounds; the largest beyond small inputs
+    // A power of two about the average segment length within the bounds; the largest beyond small inputs, and a larger
+    // one for few long segments
     static std::size_t
     __work_group_size(const sycl::queue& __q, const std::size_t __n, const std::size_t __m)
     {
         const std::size_t __max_size = __segmented_reduce_flat_tuning::__max_work_group(__q);
+        if (__n > __max_input && __n >= __min_large_average_length * __m)
+        {
+            const oneapi::dpl::__internal::__device_compute_units __compute_units(__q);
+            if (__m <= __max_large_segments_per_core * __compute_units.__num_xe_cores)
+                return std::max(__sub_group_size,
+                                oneapi::dpl::__internal::__max_work_group_size(__q, __large_work_group_size) /
+                                    __sub_group_size * __sub_group_size);
+        }
         if (__n > __max_input)
             return __max_size;
 
