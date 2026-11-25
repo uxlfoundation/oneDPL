@@ -77,7 +77,7 @@ struct test_exclusive_scan_with_binary_op
               typename BinaryOp, typename Prep>
     std::enable_if_t<!TestUtils::is_reverse_v<Iterator1>>
     operator()(Policy&& exec, Iterator1 in_first, Iterator1 in_last, Iterator2 out_first, Iterator2 out_last,
-               Iterator3 expected_first, Size n, T init, BinaryOp binary_op, T trash, Prep p)
+               Iterator3 expected_first, Size n, T init, BinaryOp binary_op, Prep p)
     {
         using namespace std;
         if constexpr (in_place)
