@@ -163,15 +163,10 @@ struct __block_storage : public __device_storage<_T>
     __view
     __all_view()
     {
-        // checking the buffer size is the simplest way to cover both "no device USM"
+        // checking whether the buffer is present is the simplest way to cover both "no device USM"
         // and _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
         if (this->__sycl_buf.has_value())
             return __view{__block_sz, this->__usm_buf.get(), {*this->__sycl_buf}};
-#else
-        if (this->__sycl_buf.size() != 0)
-            return __view{__block_sz, this->__usm_buf.get(), {this->__sycl_buf}};
-#endif
         else
             return __view{__block_sz, this->__usm_buf.get(), {}};
     }

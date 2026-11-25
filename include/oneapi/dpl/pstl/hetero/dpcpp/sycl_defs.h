@@ -106,9 +106,6 @@
 #define _ONEDPL_SYCL2020_MUL_HI_BROKEN (_ONEDPL_ACPP_VERSION != 0)
 // SYCL 2020 section 4.6.4.4 requires info::device::atomic_memory_scope_capabilities, but ACPP does not provide it.
 #define _ONEDPL_SYCL2020_ATOMIC_MEMORY_SCOPE_CAPABILITIES_BROKEN (_ONEDPL_ACPP_VERSION != 0)
-// SYCL 2020 permits constructing a zero-sized sycl::buffer from a null host pointer and requires size() == 0 for a
-// zero-range buffer, but ACPP throws on nullptr and substitutes range{1} for range{0}.
-#define _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN (_ONEDPL_ACPP_VERSION != 0)
 // There are issues with some accessor constructors prior to DPC++ 2023.1 and with 2023.2.
 #define _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN                                                           \
     (_ONEDPL_LIBSYCL_VERSION_LESS_THAN(60100) || _ONEDPL_LIBSYCL_VERSION == 60200)

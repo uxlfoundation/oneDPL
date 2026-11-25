@@ -249,11 +249,7 @@ struct __combi_accessor
 {
   private:
     using __acc_t = sycl::accessor<_T, 1, _AccessMode, __dpl_sycl::__target_device, sycl::access::placeholder::false_t>;
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
     using __sycl_buf_t = std::optional<sycl::buffer<_T, 1>>;
-#else
-    using __sycl_buf_t = sycl::buffer<_T, 1>;
-#endif
     _T* __ptr = nullptr;
     __acc_t __acc;
 
@@ -264,26 +260,18 @@ struct __combi_accessor
     {
         if (__fake)
         {
-            return __acc_t(
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
-#    if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
-                *__sycl_buf, __cgh, __prop_list
-#    else
-                __sycl_buf, __cgh, __prop_list
-#    endif
-#endif
-            );
-        }
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
-        assert(__sycl_buf.has_value());
-        sycl::buffer<_T, 1>& __buf = *__sycl_buf;
+            assert(__sycl_buf.has_value());
+            return __acc_t(*__sycl_buf, __cgh, __prop_list);
 #else
-        sycl::buffer<_T, 1>& __buf = __sycl_buf;
+            return __acc_t();
 #endif
+        }
+        assert(__sycl_buf.has_value());
         if constexpr (__with_offset)
-            return __acc_t(__buf, __cgh, sycl::range{__sz}, sycl::id{__offset}, __prop_list);
+            return __acc_t(*__sycl_buf, __cgh, sycl::range{__sz}, sycl::id{__offset}, __prop_list);
         else
-            return __acc_t(__buf, __cgh, __prop_list);
+            return __acc_t(*__sycl_buf, __cgh, __prop_list);
     }
 
   public:
@@ -327,20 +315,11 @@ struct __device_storage
     using type = _T;
 
     std::unique_ptr<_T, __internal::__sycl_usm_free> __usm_buf = nullptr;
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
     std::optional<sycl::buffer<_T, 1>> __sycl_buf =
-#    if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
+#if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
         sycl::buffer<_T, 1>{sycl::range{1}}; // A non-empty buffer to avoid problems with accessor construction
-#    else
-        std::nullopt;
-#    endif
 #else
-    sycl::buffer<_T, 1> __sycl_buf =
-#    if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
-        {sycl::range{1}}; // A non-empty buffer to avoid problems with accessor construction
-#    else
-        {nullptr, sycl::range{0}};
-#    endif
+        std::nullopt;
 #endif
 
     __device_storage() = default;
@@ -369,11 +348,7 @@ struct __device_storage
         if (__ptr)
             __usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
         else
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
             __sycl_buf.emplace(__n);
-#else
-            __sycl_buf = sycl::buffer<_T, 1>(__n);
-#endif
     }
 
     // Similar in logic to __internal::__copy_n but optimized for use with __*_storage
@@ -393,12 +368,8 @@ struct __device_storage
         }
         else
         {
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
             assert(__sycl_buf.has_value());
             std::copy_n(__sycl_buf->get_host_access(sycl::read_only).begin() + __offset, __n, __dst);
-#else
-            std::copy_n(__sycl_buf.get_host_access(sycl::read_only).begin() + __offset, __n, __dst);
-#endif
         }
     }
 
@@ -413,12 +384,8 @@ struct __device_storage
             if constexpr (std::is_same_v<_RawState, __internal::__scratch_raw_state>)
             {
                 // use ranged reinterpret as a workaround for a SYCL implementation bug
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
                 assert(__sycl_buf.has_value());
                 __raw_st.__sycl_buf = __sycl_buf->template reinterpret<std::byte, 1>({__sycl_buf->size() * sizeof(_T)});
-#else
-                __raw_st.__sycl_buf = __sycl_buf.template reinterpret<std::byte, 1>({__sycl_buf.size() * sizeof(_T)});
-#endif
             }
             else
                 __raw_st.__sycl_buf = std::move(__sycl_buf);

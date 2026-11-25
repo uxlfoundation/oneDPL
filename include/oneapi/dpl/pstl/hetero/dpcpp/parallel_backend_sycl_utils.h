@@ -391,11 +391,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
     std::shared_ptr<_T> __scratch_buf;
     std::shared_ptr<_T> __result_buf;
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
     mutable std::optional<__sycl_buffer_t> __sycl_buf;
-#else
-    mutable __sycl_buffer_t __sycl_buf;
-#endif
 
     std::size_t __scratch_n;
     bool __use_USM_host;
@@ -422,11 +418,7 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
 
   public:
     __result_and_scratch_storage(sycl::queue __q, std::size_t __scratch_n)
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
         : __sycl_buf{std::nullopt}, __scratch_n{__scratch_n},
-#else
-        : __sycl_buf{nullptr, sycl::range{0}}, __scratch_n{__scratch_n},
-#endif
           __use_USM_host{__use_USM_host_allocations(__q)}, __supports_USM_device{__use_USM_allocations(__q)}
     {
         const std::size_t __total_n = _NResults + __scratch_n;
@@ -459,31 +451,19 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
             else
             {
                 // If we don't have USM support allocate memory here
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
                 __sycl_buf.emplace(__total_n);
-#else
-                __sycl_buf = __sycl_buffer_t(__total_n);
-#endif
             }
         }
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
         // A fake buffer to work around problems with accessor construction
         if (__supports_USM_device)
-#    if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
             __sycl_buf.emplace(sycl::range{1});
-#    else
-            __sycl_buf = __sycl_buffer_t(sycl::range{1});
-#    endif
 #endif
     }
 
     __result_and_scratch_storage(__internal::__copyable_storage_state<_T>&& __transfer)
         : __scratch_buf(std::move(__transfer.__scratch_buf)), __result_buf(std::move(__transfer.__result_buf)),
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
           __sycl_buf(std::move(__transfer.__sycl_buf)),
-#else
-          __sycl_buf(std::move(__transfer.__sycl_buf).value_or(__sycl_buffer_t{nullptr, sycl::range{0}})),
-#endif
           __scratch_n(__transfer.__offset), __use_USM_host(__transfer.__kind == sycl::usm::alloc::host),
           __supports_USM_device(__transfer.__kind != sycl::usm::alloc::unknown) {}
 
@@ -547,12 +527,8 @@ struct __result_and_scratch_storage : __result_and_scratch_storage_base
         }
         else
         {
-#if _ONEDPL_SYCL2020_ZERO_SIZE_BUFFER_BROKEN
             assert(__sycl_buf.has_value());
             return __sycl_buf->get_host_access(sycl::read_only)[__scratch_n + _Idx];
-#else
-            return __sycl_buf.get_host_access(sycl::read_only)[__scratch_n + _Idx];
-#endif
         }
     }
 
