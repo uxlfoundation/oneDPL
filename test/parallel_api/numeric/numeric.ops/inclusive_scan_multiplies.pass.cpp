@@ -17,8 +17,10 @@
 #include "support/scan_serial_impl.h"
 #include "support/utils_scan.h"
 
-#include <random>
+#include <algorithm>
+#include <functional>
 #include <cstdint>
+#include <random>
 
 using namespace TestUtils;
 
