@@ -1225,6 +1225,99 @@ struct __segmented_reduce_group_submitter<_Acc, __internal::__optional_kernel_na
     }
 };
 
+// A sub-group per segment for many segments of tens to about a thousand elements on average: one kernel without local
+// memory or barriers, where the flat path needs its search and second kernel and a work-group per segment leaves most
+// of its work-items idle. Longer averages are left to the other paths: a sub-group alone would serialize a long segment
+struct __segmented_reduce_sub_group_tuning
+{
+    // As on the flat path, whose sub-group size the dispatch checks for both
+    static constexpr std::size_t __sub_group_size = __segmented_reduce_flat_tuning::__sub_group_size;
+
+    static constexpr std::size_t __min_average_length = 64;
+    static constexpr std::size_t __max_average_length = 1024;
+    // Fewer segments leave the device underused, and one long segment among them would hold up the kernel
+    static constexpr std::size_t __min_segments = 1024;
+
+    static bool
+    __applies(const std::size_t __n, const std::size_t __m)
+    {
+        // Positions within a segment fit in 32 bits
+        return __m >= __min_segments && __n <= std::numeric_limits<std::uint32_t>::max() &&
+               __n >= __min_average_length * __m && __n <= __max_average_length * __m;
+    }
+};
+
+template <typename... _Name>
+class __segmented_reduce_sub_group_kernel;
+
+template <typename _Acc, typename _KernelName, typename _BinaryOperation, typename _Tuning>
+struct __segmented_reduce_sub_group_submitter;
+
+template <typename _Acc, typename... _Name, typename _BinaryOperation, typename _Tuning>
+struct __segmented_reduce_sub_group_submitter<_Acc, __internal::__optional_kernel_name<_Name...>, _BinaryOperation,
+                                              _Tuning>
+{
+    static_assert(std::is_arithmetic_v<_Acc>, "the sub-group per segment path takes arithmetic accumulators only");
+
+    _Acc __init; // init converted to _Acc
+    mutable _BinaryOperation __binary_op;
+
+    template <typename _InRange, typename _OffsetRange, typename _OutRange, typename _Size>
+    void
+    operator()(sycl::queue& __q, _InRange&& __input, _OffsetRange&& __offsets, _OutRange&& __result, const _Size __n,
+               const _Size __m) const
+    {
+        using oneapi::dpl::__internal::__clamp_to_size_and_cast;
+
+        constexpr std::uint32_t __sub_group_size = _Tuning::__sub_group_size;
+        const std::uint32_t __work_group_size = __segmented_reduce_flat_tuning::__max_work_group(__q);
+        const std::uint32_t __sub_groups = __work_group_size / __sub_group_size;
+        const std::size_t __num_groups = oneapi::dpl::__internal::__dpl_ceiling_div(std::size_t(__m), __sub_groups);
+
+        sycl::event __event = __q.submit([&](sycl::handler& __cgh) {
+            oneapi::dpl::__ranges::__require_access(__cgh, __input, __offsets, __result);
+
+            __cgh.parallel_for<_Name...>(
+                sycl::nd_range<1>(sycl::range<1>(__num_groups * __work_group_size), sycl::range<1>(__work_group_size)),
+                [=, *this](sycl::nd_item<1> __item) [[_ONEDPL_SYCL_REQD_SUB_GROUP_SIZE(__sub_group_size)]] {
+                    const auto __sg = __item.get_sub_group();
+                    const std::uint32_t __lane = __sg.get_local_linear_id();
+                    const std::size_t __segment =
+                        __item.get_group(0) * std::size_t(__sub_groups) + __sg.get_group_linear_id();
+
+                    // Uniform across the sub-group, which needs no other one
+                    if (__segment >= std::size_t(__m))
+                        return;
+
+                    const _Size __begin = __clamp_to_size_and_cast<_Size>(__offsets[__segment], __n);
+                    const _Size __end = __clamp_to_size_and_cast<_Size>(__offsets[__segment + 1], __n);
+                    if (__begin >= __end)
+                    {
+                        if (__lane == 0)
+                            __result[__segment] = __init;
+                        return;
+                    }
+
+                    // Lane 0 starts from op(init, first); those past the length start from the first, skipped below
+                    const std::uint32_t __length = __end - __begin;
+                    const std::uint32_t __first = __lane < __length ? __lane : 0;
+                    _Acc __acc = __lane == 0 ? __reduce_pair<_Acc>(__init, __input[__begin], __binary_op)
+                                             : _Acc(__input[__begin + __first]);
+                    __acc = __fold_strided(
+                        __acc, __lane + __sub_group_size, __length, __sub_group_size,
+                        [&](std::uint32_t __i) { return __input[__begin + __i]; }, __binary_op);
+                    __acc = __reduce_active_lanes<_Acc>(__sg, __acc, std::min(__length, __sub_group_size), __binary_op);
+
+                    if (__lane == 0)
+                        __result[__segment] = __acc;
+                });
+        });
+
+        // Wait: the algorithm has no asynchronous interface
+        __event.wait_and_throw();
+    }
+};
+
 template <typename _Name>
 class __segmented_reduce_scan_wrapper;
 template <typename _Name>
@@ -1252,7 +1345,8 @@ __parallel_reduce_by_segment_offsets_fill(_BackendTag, _ExecutionPolicy&& __exec
 // Reduces the segments of [0, __n) given by __m + 1 offsets into __m results
 template <typename _Acc, typename _ChunkTuning = __segmented_reduce_chunk_tuning,
           typename _FlatTuning = __segmented_reduce_flat_tuning,
-          typename _GroupTuning = __segmented_reduce_group_tuning>
+          typename _GroupTuning = __segmented_reduce_group_tuning,
+          typename _SubGroupTuning = __segmented_reduce_sub_group_tuning>
 struct __parallel_reduce_by_segment_offsets
 {
     template <typename _BackendTag, typename _ExecutionPolicy, typename _InRange, typename _OffsetRange,
@@ -1370,7 +1464,14 @@ struct __parallel_reduce_by_segment_offsets
     __reduce_on_gpu(sycl::queue& __q, _InRange& __input, _OffsetRange& __offsets, _OutRange& __result, const _Index __n,
                     const _Index __m, const _Acc& __init, _BinaryOperation __binary_op)
     {
-        if (_GroupTuning::__applies(__q, __n, __m))
+        if (_SubGroupTuning::__applies(__n, __m))
+        {
+            using _SubGroupKernel =
+                __internal::__kernel_name_provider<__segmented_reduce_sub_group_kernel<_CustomName, _Index>>;
+            __segmented_reduce_sub_group_submitter<_Acc, _SubGroupKernel, _BinaryOperation, _SubGroupTuning>{
+                __init, __binary_op}(__q, __input, __offsets, __result, __n, __m);
+        }
+        else if (_GroupTuning::__applies(__q, __n, __m))
         {
             using _GroupKernel =
                 __internal::__kernel_name_provider<__segmented_reduce_group_kernel<_CustomName, _Index>>;
