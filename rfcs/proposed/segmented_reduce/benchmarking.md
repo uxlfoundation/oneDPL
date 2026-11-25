@@ -10,8 +10,8 @@ Table of contents:
   - [Real graphs (SNAP)](#real-graphs-snap)
   - [Real workloads in the CUB benchmarks](#real-workloads-in-the-cub-benchmarks)
   - [Synthetic power-law graphs (R-MAT, Graph500)](#synthetic-power-law-graphs-r-mat-graph500)
-  - [Data sources and their users](#data-sources-and-their-users)
   - [Summary](#summary)
+  - [Data sources and their users](#data-sources-and-their-users)
   - [Statistics of the real data sets](#statistics-of-the-real-data-sets)
 - [Proposal](#proposal)
   - [Input regimes](#input-regimes)
@@ -170,6 +170,20 @@ distributions from a few parameters, at any scale and without external data. A s
 alone is to draw them from a Zipf or Pareto distribution [[24]](#ref-24) with an exponent and a cap. Both reproduce the
 skew of real graphs, but not their exact structure.
 
+### Summary
+
+The table below compares the approaches reviewed above: whether they reproduce skewed distributions and empty
+segments, whether they need external data, and who uses them.
+
+| Approach | Covers skew | Empty segments | External data | Used by |
+|---|---|---|---|---|
+| Uniform, swept average | no | optional | no | ModernGPU |
+| Fixed / bounded uniform | no | no | no | CUB benchmarks |
+| Real matrices (Williams / Bell–Garland set) | partly | one matrix | yes, ~240 MB of archives | SpMV literature, ModernGPU |
+| Real graphs (SNAP) | yes | yes | yes, from tens to hundreds of MB | graph analytics literature |
+| Real workloads (CUB) | yes | yes | yes, not public | CUB benchmarks (planned) |
+| Power-law generators | yes | yes | no | Graph500 |
+
 ### Data sources and their users
 
 The subsections above take their real inputs from two collections only: SuiteSparse for the matrices and SNAP for the
@@ -193,16 +207,6 @@ SuiteSparse in the Matrix Market format, and SNAP provides plain edge lists, so 
 | DIMACS Implementation Challenges, 9th and 10th [[14]](#ref-14) | https://sparse.tamu.edu/DIMACS10 (the 10th challenge graphs in SuiteSparse, e.g. `road_usa`; original site https://sites.cc.gatech.edu/dimacs10/) | road networks, meshes, clustering and partitioning instances | GAP Benchmark Suite (the road network of the USA from the 9th challenge) [[13]](#ref-13) |
 | Graph500 Kronecker generator [[15]](#ref-15) | https://graph500.org | synthetic power-law graphs of any scale, R-MAT style [[7]](#ref-7) | the Graph500 ranking, GAP Benchmark Suite (`kron`) [[13]](#ref-13) |
 | Matrix Market [[16]](#ref-16) | https://math.nist.gov/MatrixMarket | an older matrix collection and the coordinate file format used by SuiteSparse | the input format of most sparse libraries and of this proposal's conversion |
-
-### Summary
-
-| Approach | Covers skew | Empty segments | External data | Comparable with |
-|---|---|---|---|---|
-| Uniform, swept average | no | optional | no | ModernGPU |
-| Fixed / bounded uniform | no | no | no | CUB benchmarks |
-| Real matrices (Williams / Bell–Garland set) | partly | one matrix | yes, ~240 MB of archives | SpMV literature, ModernGPU |
-| Real graphs (SNAP) | yes | yes | yes, from tens to hundreds of MB | graph analytics literature |
-| Power-law generators | yes | yes | no | Graph500 |
 
 ### Statistics of the real data sets
 
