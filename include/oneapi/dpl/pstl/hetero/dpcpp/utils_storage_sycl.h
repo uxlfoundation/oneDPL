@@ -378,7 +378,7 @@ struct __device_storage
     {
         if (__usm_buf)
             __raw_st.__usm_ptr = __usm_buf.release();
-        else
+        else if (__sycl_buf)
         {
             if constexpr (std::is_same_v<_RawState, __internal::__scratch_raw_state>)
             {
