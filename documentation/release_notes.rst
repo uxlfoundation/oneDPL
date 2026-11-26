@@ -80,13 +80,6 @@ See oneDPL Guide for other `restrictions and known limitations`_.
   in ``oneapi::dpl::ranges`` require more than their ``requires`` clauses specify: with both host
   and device policies they require an output value type constructible from input reference types and
   a non-proxy output iterator.
-- You may experience segmentation faults at a program exit when it was built with AdaptiveCPP.
-  Define `ONEDPL_USE_PREDEFINED_POLICIES=0` macro as a workaround.
-  This issue is may be fixed in AdataptiveCPP, see the #2208 issue in its repository.
-- You may encounter "buffer: Supplied host pointer is null" issue in ``all_of``, ``count``, ``find``, ``equal``,
-  ``search``, ``copy_if``, ``remove_if``, ``unique``, ``is_sorted``, ``set_union`` and other algorithms
-  when building your program with AdaptiveCPP.
-  This issue is may be fixed in AdaptiveCPP, see the #2344 issue in its repository.
 
 New in 2022.14.0
 ================
