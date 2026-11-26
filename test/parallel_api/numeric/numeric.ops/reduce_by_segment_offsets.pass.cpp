@@ -26,7 +26,7 @@
 #    include "support/utils_sycl.h"
 #endif
 
-#include <algorithm>   // std::copy_n, std::fill, std::min, std::max
+#include <algorithm>   // std::copy_n, std::fill, std::min, std::max, std::is_sorted
 #include <cstddef>     // std::size_t, std::nullptr_t
 #include <cstdint>     // std::int16_t, std::int64_t, std::uint8_t, std::uint16_t, std::uint32_t, std::uint64_t
 #include <functional>  // std::plus, std::multiplies, std::bit_xor, std::logical_and
@@ -376,9 +376,13 @@ template <std::size_t CallNumber>
 void
 test_many_long_segments()
 {
+    constexpr std::size_t offsets_count = 2100;
     std::vector<int> offsets{0};
-    for (std::size_t i = 0; i < 2100; ++i)
+    offsets.reserve(offsets_count + 1);
+
+    for (std::size_t i = 0; i < offsets_count; ++i)
         offsets.push_back(offsets.back() + (i % 400 == 7 ? 2000 : 100));
+    assert(std::is_sorted(offsets.begin(), offsets.end()));
 
     const int num_segments = offsets.size() - 1;
     const std::size_t n = offsets.back();
