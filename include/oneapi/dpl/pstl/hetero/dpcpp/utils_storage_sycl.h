@@ -177,7 +177,7 @@ __copy_n(_T* __dst, std::size_t __n, const __result_raw_state<_T>& __raw_st, syc
     }
     else
     {
-        assert(__raw_st.__kind == sycl::usm::alloc::unknown && __raw_st.__sycl_buf.has_value());
+        assert(__raw_st.__kind == sycl::usm::alloc::unknown && __raw_st.__sycl_buf);
         std::copy_n(__raw_st.__sycl_buf->get_host_access(sycl::read_only).begin() + __raw_st.__offset, __count, __dst);
     }
 }
@@ -586,7 +586,7 @@ class __storage_holder
         static_assert(_I < sizeof...(_ResultTypes), "Result slot index out of range");
         static_assert(std::is_same_v<_T, __result_value_t<_I>>);
         auto& __slot = std::get<_I>(__result_slots);
-        assert(__slot.__usm_ptr == nullptr && !__slot.__sycl_buf.has_value());
+        assert(__slot.__usm_ptr == nullptr && !__slot.__sycl_buf);
         std::move(__st).__move_state_to(__slot);
     }
 
@@ -597,7 +597,7 @@ class __storage_holder
         static_assert(_I < sizeof...(_ResultTypes), "Result index out of range");
         static_assert(std::is_same_v<_T, __result_value_t<_I>>);
         auto& __slot = std::get<_I>(__result_slots);
-        assert(__slot.__usm_ptr == nullptr && !__slot.__sycl_buf.has_value());
+        assert(__slot.__usm_ptr == nullptr && !__slot.__sycl_buf);
         void* __scratch_ptr = std::move(__st).__move_state_to(__slot);
         if (__scratch_ptr)
         {
