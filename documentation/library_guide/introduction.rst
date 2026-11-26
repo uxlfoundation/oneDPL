@@ -215,7 +215,7 @@ Known Limitations
   ``search``, ``copy_if``, ``remove_if``, ``unique``, ``is_sorted``, ``set_union``, and other algorithms
   when building your program with AdaptiveCpp.
   This issue may be fixed in AdaptiveCpp; see
-  `issue #2344 <https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2344>`_ in its repository.
+  `issue #1574 <https://github.com/AdaptiveCpp/AdaptiveCpp/issues/1574>`_ in its repository.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
