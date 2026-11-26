@@ -216,6 +216,14 @@ Known Limitations
   when building your program with AdaptiveCpp.
   This issue may be fixed in AdaptiveCpp; see
   `issue #1574 <https://github.com/AdaptiveCpp/AdaptiveCpp/issues/1574>`_ in its repository.
+* You may get incorrect results without any error reported from algorithms with device policies
+  when a program is built with AdaptiveCpp with ahead-of-time compilation for NVIDIA GPUs
+  (``--acpp-targets=cuda:sm_XX``): a kernel that needs more registers than available to a work-group
+  is not launched, and the failure is not reported.
+  Compile with ``--acpp-targets=generic``, or limit the registers per work-item
+  (for example, ``-Xcuda-ptxas --maxrregcount=64``), to avoid the issue.
+  This issue may be fixed in AdaptiveCpp; see
+  `issue #2343 <https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2343>`_ in its repository.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
