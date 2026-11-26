@@ -69,6 +69,20 @@ __max_work_group_size(const sycl::queue& __q, std::size_t __wg_size_limit = 8192
     return std::min(__wg_size, __wg_size_limit);
 }
 
+// Empirically derived caps of the work-group size of reduce-then-scan, based upon the target
+inline std::uint32_t
+__reduce_then_scan_work_group_size_cap(bool __is_gpu)
+{
+#if _ONEDPL_ACPP_VERSION
+    // AdaptiveCpp has no query of the work-group size limit of a kernel, and its kernels compiled ahead of time for
+    // NVIDIA GPUs have no launch bounds: a launch of 1024 work-items of a kernel needing more than 64 registers per
+    // work-item fails, and the failure is not reported. 512 work-items leave up to 128 registers per work-item.
+    return __is_gpu ? 512 : 128;
+#else
+    return __is_gpu ? 1024 : 128;
+#endif
+}
+
 template <typename _Size>
 _Size
 __slm_adjusted_work_group_size(const sycl::queue& __q, _Size __local_mem_per_wi, _Size __wg_size = 0)
