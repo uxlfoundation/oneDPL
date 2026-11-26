@@ -62,8 +62,7 @@ New in This Release
   such as ``find``, ``any_of``, ``equal``, ``is_sorted`` and ``includes`` require ``sycl::memory_scope::device`` capability,
   which can be queried through ``sycl::info::device::atomic_memory_scope_capabilities``.
 - With AdaptiveCpp and ahead-of-time compilation for NVIDIA GPUs (``--acpp-targets=cuda:sm_XX``),
-  algorithms with device policies may silently produce incorrect results, for example
-  ``experimental::reduce_by_segment`` with more than 2048 segments: a kernel that needs more registers
+  algorithms with device policies may silently produce incorrect results: a kernel that needs more registers
   than available to a work-group is not launched, and the failure is not reported.
   Compiling with ``--acpp-targets=generic`` avoids the issue.
 
