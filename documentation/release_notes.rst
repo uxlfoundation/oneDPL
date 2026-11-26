@@ -64,7 +64,8 @@ New in This Release
 - With AdaptiveCpp and ahead-of-time compilation for NVIDIA GPUs (``--acpp-targets=cuda:sm_XX``),
   algorithms with device policies may silently produce incorrect results: a kernel that needs more registers
   than available to a work-group is not launched, and the failure is not reported.
-  Compiling with ``--acpp-targets=generic`` avoids the issue.
+  Compiling with ``--acpp-targets=generic``, or limiting the registers per work-item
+  (for example, ``-Xcuda-ptxas --maxrregcount=64``), avoids the issue.
 
 Existing Issues
 ^^^^^^^^^^^^^^^
