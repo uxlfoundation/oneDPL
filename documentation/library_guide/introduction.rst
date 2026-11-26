@@ -207,6 +207,15 @@ Known Limitations
   with segments defined by keys, with the ``unseq`` or ``par_unseq`` policy, when compiled by Intel® oneAPI DPC++/C++
   Compiler 2024.1 or earlier with ``-fiopenmp``, ``-fiopenmp-simd``, ``-qopenmp``, ``-qopenmp-simd`` options on Linux.
   To avoid the issue, pass ``-fopenmp`` or ``-fopenmp-simd`` option instead.
+* You may experience segmentation faults at program exit when a program is built with AdaptiveCpp.
+  Define the ``ONEDPL_USE_PREDEFINED_POLICIES=0`` macro as a workaround.
+  This issue may be fixed in AdaptiveCpp; see
+  `issue #2208 <https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2208>`_ in its repository.
+* You may encounter a "buffer: Supplied host pointer is null." error in ``all_of``, ``count``, ``find``, ``equal``,
+  ``search``, ``copy_if``, ``remove_if``, ``unique``, ``is_sorted``, ``set_union``, and other algorithms
+  when building your program with AdaptiveCpp.
+  This issue may be fixed in AdaptiveCpp; see
+  `issue #2344 <https://github.com/AdaptiveCpp/AdaptiveCpp/issues/2344>`_ in its repository.
 
 .. _`SYCL Specification`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html
 .. _`SYCL device-copyable`: https://registry.khronos.org/SYCL/specs/sycl-2020/html/sycl-2020.html#sec::device.copyable
