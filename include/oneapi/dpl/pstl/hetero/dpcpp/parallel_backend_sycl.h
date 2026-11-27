@@ -1243,9 +1243,17 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
 {
     template <typename _BrickTag, typename __FoundStateType, typename _Predicate, typename... _Ranges>
     __FoundStateType
-    operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __wgroup_size,
+    operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __max_wgroup_size,
                const __FoundStateType __init_value, _Predicate __pred, _Ranges&&... __rngs)
     {
+#if _ONEDPL_COMPILE_KERNEL
+        // The kernel may support fewer work-items per work-group, e.g. by the registers the user predicate needs
+        auto __kernel = __internal::__kernel_compiler<KernelName...>::__compile(__q);
+        const std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__max_wgroup_size), __kernel);
+#else
+        const std::size_t __wgroup_size = __max_wgroup_size;
+#endif
         __result_storage<__FoundStateType> __result{__q, 1};
 
         // Calculate the number of elements to be processed by each work-item.
@@ -1256,7 +1264,13 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             auto __result_acc = __get_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});
 
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            __cgh.use_kernel_bundle(__kernel.get_kernel_bundle());
+#endif
             __cgh.parallel_for<KernelName...>(
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                __kernel,
+#endif
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
                     const std::size_t __local_idx = __item.get_local_id(0);
@@ -1305,8 +1319,17 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     template <typename _BrickTag, typename _AtomicType, typename _Predicate, typename... _Ranges>
     _AtomicType
     operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __n_groups,
-               const std::size_t __wgroup_size, const _AtomicType __init_value, _Predicate __pred, _Ranges&&... __rngs)
+               const std::size_t __max_wgroup_size, const _AtomicType __init_value, _Predicate __pred,
+               _Ranges&&... __rngs)
     {
+#if _ONEDPL_COMPILE_KERNEL
+        // The kernel may support fewer work-items per work-group, e.g. by the registers the user predicate needs
+        auto __kernel = __internal::__kernel_compiler<KernelName...>::__compile(__q);
+        const std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__max_wgroup_size), __kernel);
+#else
+        const std::size_t __wgroup_size = __max_wgroup_size;
+#endif
         // We allocate a single element of result storage and two elements of scratch storage. The device scratch
         // storage is used for the atomic operations in the main __parallel_find_or kernel and then copied to the
         // result host memory (if supported) in the writeback kernel for best performance.
@@ -1340,7 +1363,13 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
             __cgh.depends_on(__event_init);
 
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            __cgh.use_kernel_bundle(__kernel.get_kernel_bundle());
+#endif
             __cgh.parallel_for<KernelName...>(
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                __kernel,
+#endif
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
                                           sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
@@ -1435,8 +1464,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         // We shouldn't have any restrictions for _AtomicType type here
         // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
 
-        using __find_or_one_wg_kernel_name =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_one_wg<_CustomName>>;
+        using __find_or_one_wg_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__find_or_kernel_one_wg, _CustomName,
+                                                                                   _Brick, _BrickTag, _Ranges...>>;
 
         // Single WG implementation
         __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
@@ -1452,8 +1482,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using __find_or_kernel_name_init =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
 
-        using __find_or_kernel_name =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
+        using __find_or_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__find_or_kernel, _CustomName,
+                                                                                   _Brick, _BrickTag, _Ranges...>>;
 
         // Multiple WG implementation
         __result =
