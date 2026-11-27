@@ -4,6 +4,21 @@
 
 This RFC proposes adding data containers to oneDPL for managing device memory and data transfer.
 
+### Status
+
+This document describes the overall direction and the design decisions shared by both
+containers. Its two parts are at different stages, so they live in different RFC states:
+
+| Part | State | Document |
+|---|---|---|
+| `device_array<T>`, `device_allocator<T, Alignment>` | **Experimental** — implemented and released in `oneapi::dpl::experimental` | [rfcs/experimental/device_array](../../experimental/device_array/README.md) |
+| `compat::device_vector<T, Alloc>` | **Proposed** — not implemented | [device_vector_compat.md](device_vector_compat.md) |
+
+This split is what `rfcs/README.md` describes for a document that covers a general
+direction with sub-RFCs for specific features: instances may reside in different states,
+adjusted as the direction progresses. This document remains in `rfcs/proposed` because the
+direction as a whole is not yet complete.
+
 ### Motivation
 
 - **Migration from CUDA/Thrust** - Thrust's `device_vector` is heavily used
@@ -54,22 +69,23 @@ This RFC proposes adding data containers to oneDPL for managing device memory an
 ## Proposal
 
 The proposal consists of two complementary public types that share a
-non-public base implementation, `internal::__device_storage_base`:
+non-public base implementation, `__internal::__device_storage_base`:
 
-1. **[`device_array<T>`](device_array.md)** — the primary API.
+1. **[`device_array<T>`](../../experimental/device_array/README.md)** — the primary API,
+   now an experimental feature.
    A clean, explicit, **fixed-size** container for device memory with no proxy
    types. Explicit methods for host access or transfer, uninitialized by
    default, and device iteration and range support via `oneapi::dpl::span` from `span()`.
    It surfaces a deliberately minimal interface: no allocator access, and no
-   resizing.
+   resizing. Ships with its default allocator, `device_allocator<T, Alignment>`.
 
 2. **[`compat::device_vector<T, Alloc>`](device_vector_compat.md)** — a
-   Thrust compatibility layer. Adds `device_pointer`, `device_reference`, and
+   Thrust compatibility layer, still proposed. Adds `device_pointer`, `device_reference`, and
    `operator[]` proxy semantics for drop-in migration from
    `thrust::device_vector`, along with a resizable, allocator-aware interface.
 
 Both types **privately inherit** from
-`internal::__device_storage_base<T, Alloc>`, which owns the shared machinery:
+`__internal::__device_storage_base<T, Alloc>`, which owns the shared machinery:
 the device allocation and its lifetime, size, associated `sycl::context` /
 `sycl::device`, the allocator instance, resizing, and the host-device transfer
 helpers. Each derived type re-exposes (via `using` declarations) only the
@@ -78,13 +94,18 @@ the allocator and resizing entirely, while `compat::device_vector` re-exposes
 the full surface. This lets `device_array` present a simplified interface
 without duplicating the implementation that `device_vector` reuses.
 
+Only the portion of the base that `device_array` needs is implemented today; the resizing
+machinery arrives with `device_vector`. Implementing `device_vector` on this base is
+therefore also the test of whether the factoring is right, which is one of
+`device_array`'s [exit criteria](../../experimental/device_array/README.md#exit-criteria).
+
 ### Class Relationships
 
 ```mermaid
 classDiagram
     direction LR
 
-    namespace internal {
+    namespace __internal {
         class __device_storage_base~T, Alloc~ {
             owns allocation + size + context/device + allocator
             resize / host transfers
@@ -95,7 +116,7 @@ classDiagram
         class device_array~T~ {
             fixed size, no allocator
             device access: span()
-            host access: copy_to() / copy_from() / read_at()
+            host access: copy_to / copy_from / read_at / write_at
         }
     }
 
@@ -169,8 +190,9 @@ classDiagram
   alias `std::span` when `__cpp_lib_span >= 202002L` and fall back to
   `sycl::span` otherwise. Both are device copyable per SYCL 2020 §3.13.1, but
   preferring the standard type where it exists lets these spans compose with
-  users' C++20 code and `std::ranges` without conversion. See
-  [device_array](device_array.md#oneapidplspan).
+  users' C++20 code and `std::ranges` without conversion. The data containers
+  are omitted where no span implementation is available. See
+  [device_array](../../experimental/device_array/README.md#oneapidplspan).
 
 - **No `push_back`, `insert`, `erase`.**
   Rarely used in practice (see [usage study](usage_pattern_study.md)),
@@ -180,7 +202,7 @@ classDiagram
   The user is responsible for ensuring prior kernels have completed before
   host-side access. This can be achieved via an in-order queue or explicit
   event waits. No asynchronous overloads are proposed for either type; see
-  [device_array](device_array.md#resolved-questions).
+  [device_array](../../experimental/device_array/README.md#resolved-questions).
 
 - **Header organization** - use individual headers
   <oneapi/dpl/experimental/device_array>, <oneapi/dpl/compat/device_vector>, we may add

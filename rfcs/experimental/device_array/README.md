@@ -10,26 +10,54 @@ asynchronous access.
 This focus provides support for the main usage pattern for users of `device_vector`,
 and fits nicely within SYCL while avoiding much of the complexity of `device_vector`.
 
-See the [device_vector RFC](README.md) for
-full motivation, usage study, and comparison of existing implementations. This
-document only describes `device_array`.
+`device_array` and its default allocator, `device_allocator`, are released as
+experimental features in `oneapi::dpl::experimental`. They are the first part of the
+broader device container direction described by the
+[device containers RFC](../../proposed/device_vector/README.md), which holds the full
+motivation, the [usage study](../../proposed/device_vector/usage_pattern_study.md), the
+comparison of existing implementations, and the design decisions shared with
+[`compat::device_vector`](../../proposed/device_vector/device_vector_compat.md). That
+companion type is still only *proposed* and is not implemented; this document covers
+`device_array` and `device_allocator` only.
 
 ## Relationship to the shared base
 
-`device_array` and `compat::device_vector` share their implementation through a
-non-public base, `oneapi::dpl::__internal::__device_storage_base<T, Alloc>`,
+`device_array` and the proposed `compat::device_vector` share their implementation through
+a non-public base, `oneapi::dpl::__internal::__device_storage_base<T, Alloc>`,
 which owns the device allocation and its lifetime, the size, the associated
 `sycl::context` / `sycl::device`, the allocator instance, resizing, and the
 host-device transfer helpers.
 
 `device_array` **privately inherits** from
-`__device_storage_base<T, device_allocator<T>>` and re-exposes (via `using`
+`__internal::__device_storage_base<T, device_allocator<T>>` and re-exposes (via `using`
 declarations) only the fixed-size subset of that interface. The allocator type
 is fixed to the default `device_allocator<T>` and is not part of
 `device_array`'s public API; resizing, `reserve`, `capacity`, and `clear` are
 not re-exposed. This lets `device_array` present a simplified interface while
-`compat::device_vector` reuses the same base to offer a resizable,
+`compat::device_vector` can later reuse the same base to offer a resizable,
 allocator-aware container.
+
+Only the parts of the base that `device_array` needs are implemented so far; the resizing
+machinery listed above is part of the `device_vector` proposal, not of this feature.
+
+## Availability
+
+`device_array` is defined only when a SYCL backend is enabled
+(`_ONEDPL_BACKEND_SYCL`) and a span type is available (`_ONEDPL_SPAN_PRESENT` — see
+[`oneapi::dpl::span`](#oneapidplspan)). Without a span there is no way to express the
+interface, so the class is not declared at all rather than declared and unusable.
+
+## Requirements on `T`
+
+The shared base static asserts both of these:
+
+- `sycl::is_device_copyable_v<T>` — every transfer is a `sycl::queue::memcpy` or
+  `sycl::queue::fill`.
+- `T` is a non-`const`, non-reference, non-`void` object type.
+
+`to_vector()` additionally requires `std::is_default_constructible_v<T>`, but only when
+it is called; `read_at()` deliberately does not, so a
+`device_array<NonDefaultConstructible>` remains fully usable minus that one convenience.
 
 ## API
 
@@ -37,7 +65,7 @@ allocator-aware container.
 namespace oneapi::dpl::experimental {
 
 template <typename T>
-class device_array : private internal::__device_storage_base<T, device_allocator<T>> {
+class device_array : private __internal::__device_storage_base<T, device_allocator<T>> {
 public:
     using value_type      = T;
     using size_type       = std::size_t;
@@ -67,13 +95,29 @@ public:
     // A moved-from device_array is empty: size() == 0 and empty() is true. It may be
     // destroyed or used as the target of a move assignment, but other usage is
     // undefined behavior.
-    device_array(device_array&&) noexcept;
-    device_array& operator=(device_array&&) noexcept;
+    //
+    // Conditionally noexcept: SYCL 2020 does not specify the move operations of
+    // sycl::context or sycl::device as noexcept, so these are noexcept exactly when
+    // those are.
+    device_array(device_array&&) noexcept(/* see above */);
+    device_array& operator=(device_array&&) noexcept(/* see above */);
 
     // deallocates device memory
     ~device_array();
 
     // Host-device transfer
+    //
+    // Argument order is uniform: what is transferred, then an optional offset into the
+    // container, then an optional queue, then an optional event to depend on. Each
+    // operation comes in three forms (two for the single-element writes, where the
+    // offset is not optional):
+    //
+    //   (data, offset)              -- queue-less; uses a queue built on demand from the
+    //                                 stored context and device
+    //   (data, queue, depends_on)   -- offset defaults to 0
+    //   (data, offset, queue, depends_on)
+    //
+    // All of them block until the transfer completes.
     //
     // Preconditions: for the bulk overloads, offset <= size(); an offset equal to
     // size() is well-formed and transfers zero elements. For the single-element
@@ -110,15 +154,16 @@ public:
                         sycl::event depends_on = {});
 
     // single element
-    void copy_from(const T& value, size_type dst_offset = 0);
-    // overload to support queue with defaulted offset = 0
-    void copy_from(const T& value, sycl::queue q, sycl::event depends_on = {});
-    void copy_from(const T& value, size_type dst_offset, sycl::queue q,
-                   sycl::event depends_on = {});
+    // The offset is a required, leading argument, dst_offset == size() throws.
+    void write_at(size_type dst_offset, const T& value);
+    void write_at(size_type dst_offset, const T& value, sycl::queue q,
+                  sycl::event depends_on = {});
 
     // Capacity (fixed size — no resize / reserve / capacity / clear)
     size_type size()  const;
     bool      empty() const;
+
+    // Note: there is deliberately no data() member; see "Iterator access" below.
 
     void swap(device_array& other);
 
@@ -158,12 +203,94 @@ Span iterators should not be passed to a oneDPL iterator API with a device polic
 to be `oneapi::dpl::is_indirectly_device_accessible`. What we want for iterator APIs
 with a device policy are pointers to USM memory (use `oneapi::dpl::begin/end`).
 
-## Allocator
+There is deliberately **no** `data()` member. `sycl::span`'s C++17 container constructor
+only needs `data()` and `size()` to be findable, so for a `T` from the standard library a
+public `data()` would make an expression such as `d2.copy_from(d)` — passing a
+`device_array` where a `span` is expected — compile under C++17 and fail under C++20,
+where `std::span`'s corresponding constructor is constrained. A raw pointer is available
+as `oneapi::dpl::begin(d)` or `d.span().data()`.
 
-`device_array` fixes its allocator to the default `device_allocator<T>` and does not
-expose it. Pluggable allocation via the `DeviceAllocator` concept is available on
-[`compat::device_vector`](device_vector_compat.md#allocator). Allocation via
-`sycl::malloc_device` during construction can result in a `sycl::exception`.
+## `device_allocator`
+
+`device_array` fixes its allocator to `device_allocator<T>` and does not expose it.
+Pluggable allocation via the proposed `DeviceAllocator` concept is a `device_vector`
+feature; see the
+[device_vector allocator requirements](../../proposed/device_vector/device_vector_compat.md#allocator).
+`device_allocator` itself, however, ships with `device_array` and is public, so it is
+specified here.
+
+Because the allocator is stateful and not default constructible, each `device_array`
+constructor builds one from the same context and device it is given.
+
+```cpp
+namespace oneapi::dpl::experimental {
+
+template <typename T, std::size_t Alignment = 0>
+class device_allocator {
+public:
+    using value_type = T;
+    using size_type  = std::size_t;
+
+
+    explicit device_allocator(sycl::context ctx, sycl::device dev,
+                              const sycl::property_list& prop_list = {});
+    explicit device_allocator(sycl::queue q,
+                              const sycl::property_list& prop_list = {});
+
+    // Converting constructor; carries the allocation target over. Conditionally noexcept:
+    // SYCL does not guarantee noexcept copies of context, device or property_list.
+    template <typename U>
+    device_allocator(const device_allocator<U, Alignment>& other) noexcept(/* see above */);
+
+    // Alignment == 0 uses sycl::malloc_device; otherwise sycl::aligned_alloc_device,
+    // which itself raises the alignment to max(Alignment, alignof(T)).
+    T*   allocate(size_type count) const;
+    void deallocate(T* ptr, size_type count) const;
+};
+
+// Two device allocators compare equal if they share an alignment, a context and a device,
+// following the requirement SYCL 2020 section 4.8.3.1 places on sycl::usm_allocator. As
+// with sycl::usm_allocator, the value type and the property list do not participate.
+template <typename T, std::size_t AlignmentT, typename U, std::size_t AlignmentU>
+bool operator==(const device_allocator<T, AlignmentT>&,
+                const device_allocator<U, AlignmentU>&) noexcept;
+template <typename T, std::size_t AlignmentT, typename U, std::size_t AlignmentU>
+bool operator!=(const device_allocator<T, AlignmentT>&,
+                const device_allocator<U, AlignmentU>&) noexcept;
+
+} // namespace oneapi::dpl::experimental
+```
+
+The API deliberately mirrors `sycl::usm_allocator`: stateful, carrying the `sycl::context`,
+`sycl::device` and `sycl::property_list` to allocate against, so `allocate()` takes only an
+element count. `sycl::usm_allocator` itself cannot serve this role — it contains
+`static_assert(AllocKind != sycl::usm::alloc::device)`, because device memory is not
+host-accessible and so cannot satisfy the `std::allocator` named requirements that
+`usm_allocator` is built to satisfy. `device_allocator` provides only
+`allocate`/`deallocate`, imposes none of those requirements, and correspondingly cannot be
+used with the standard containers.
+
+`rebind` and the `propagate_on_container_*` members are **not** provided. Nothing in
+`device_array` needs them, so they are deferred to when `device_vector` is implemented,
+where a container-level allocator contract first becomes observable.
+
+Other behavior:
+
+- `allocate(0)` returns `nullptr` and allocates nothing. `sycl::malloc_device(0)` is
+  unspecified, and some backends return a non-null pointer that cannot be freed.
+- `deallocate(nullptr, n)` is a no-op. The count is accepted to match the allocator
+  convention and is ignored, USM deallocation needs only the pointer and the context.
+- Allocation failure surfaces as a `sycl::exception` carrying
+  `sycl::errc::memory_allocation`. The exception is raised by `device_allocator`, not
+  propagated: `sycl::malloc_device` and `sycl::aligned_alloc_device` return `nullptr` on
+  failure rather than throwing, both when resources are insufficient and when the
+  requested alignment is unsupported, so a null result is translated into the exception.
+  It is deliberately not translated to `std::bad_alloc`, which would discard the
+  backend's diagnostics.
+- Deallocation cannot fail observably: the destructor and the move assignment 
+  operator catch and discard any exception from `sycl::free`, which is what
+  lets them be (conditionally) `noexcept`. See the [open question](#open-questions)
+   on this.
 
 ## `oneapi::dpl::span`
 
@@ -196,9 +323,9 @@ using span = sycl::span<T, Extent>;
 } // namespace oneapi::dpl
 ```
 
-Both alternatives are usable for the purposes of this API: `sycl::span` is
-guaranteed to be present in SYCL 2020, pre-adopted from c++20 and is
-device_copyable.
+Neither alternative is guaranteed. `std::span` requires C++20. `sycl::span` is required by
+SYCL 2020 3.9.2 but is missing from some implementations, so under C++17 there may be no
+span to alias at all. In that case, `device_array` is  undefined in that configuration.
 
 Preferring `std::span` where available keeps oneDPL's interface in terms of a
 standard type rather than a SYCL-specific one, so spans obtained from
@@ -256,7 +383,7 @@ q.parallel_for(sycl::range<1>(d.size()), [=](sycl::id<1> i) {
 
 // --- Explicit single-element host access ---
 float val = d.read_at(0, q);       // synchronous read
-d.copy_from(42.0f, q);             // synchronous write
+d.write_at(0, 42.0f, q);           // synchronous write; the offset is required here
 
 // --- Bulk download ---
 std::vector<float> out = d.to_vector(q);   // fresh vector
@@ -313,10 +440,15 @@ d3.copy_to(ooo_out, ooo_q, e);             // offset defaults to 0
 // same for uploads and single-element access
 d3.copy_from(host_data, ooo_q, e);
 float first = d3.read_at(0, ooo_q, e);
+d3.write_at(0, 1.0f, ooo_q, e);
 
 // with an in-order queue the parameter is unnecessary — prior submissions on q
 // already order against the transfer
 d.copy_to(out, q);
+
+// --- No queue at all: a queue is built on demand from the stored context + device ---
+std::vector<float> out2 = d.to_vector();
+d.copy_from(host_data);
 ```
 
 ## Resolved Questions
@@ -325,9 +457,46 @@ d.copy_to(out, q);
     No, while this provides more control over synchronization, it complicates the
     interface too much for the initial API.
 
+- **Should member functions which take a `sycl::queue` for synchronization also take an
+  optional `sycl::event depends_on` parameter?**
+    Yes, and it is implemented that way on every queue-taking member. It is what makes
+    the container usable with an out-of-order queue without forcing the user to insert
+    their own barrier, and it costs nothing when unused: a default-constructed
+    `sycl::event` is already complete, so the parameter is forwarded unconditionally with
+    no branch and no special case.
+
 ## Open Questions
-- Should member functions which include a `sycl::queue` for synchronization also
-  include an optional `sycl::event depends_on` parameter for event based
-  synchronization?
-  - The idea here is for out-of-order queue synchronization with existing workflows,
-    I've added this into the proposal for now.
+
+- **Should a failure to release device memory be silenced?**
+  The current behavior is the baseline but still open for discussion.
+  `__device_storage_base::__deallocate()` wraps the `sycl::free` call in a
+  `try`/`catch(...)` that discards the exception, so a failed release becomes a silent
+  resource leak. The pointer and size are reset before the allocator call, so the object
+  is left consistent either way.
+
+  This is what makes deallocation usable from the destructor and from the
+  (conditionally) `noexcept` move assignment operator, and it matches
+  `thrust::device_vector`, which likewise cannot report a failed release out of its
+  destructor. The alternatives:
+  1) Remove noexcept from move operator, allow the exception to result in a crash for destructor
+  2) Catch and report the error, at least in debug mode, but continue on without interruption
+  3) Add a finalize() / free() method. This defeats a main motivation for the container (convenient RAII
+     allocation/deallocation) to handle what should be a rare occurance, and one which may not be
+     otherwise recoverable, like a lost device in many cases.
+
+## Exit Criteria
+
+`device_array` and `device_allocator` should become fully supported if:
+
+- The open question above is resolved, or has a justification recorded for keeping the
+  current behavior.
+- There is positive adoption feedback, in particular that the explicit transfer interface
+  (`copy_to` / `copy_from` / `read_at` / `write_at` plus `span()`) covers the
+  construct / bulk-transfer / raw-pointer pattern the
+  [usage study](../../proposed/device_vector/usage_pattern_study.md) identified as
+  dominant.
+- The interface for `device_allocator` has held up against the
+  [`compat::device_vector`](../../proposed/device_vector/device_vector_compat.md)
+  implementation. Implementing it is a real test of whether the shared base
+  and the `DeviceAllocator` contract. Changes needed there may change `device_allocator`
+  and/or `device_array`.
