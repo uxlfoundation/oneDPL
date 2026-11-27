@@ -44,7 +44,7 @@ template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_short_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
-    static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
+    static constexpr std::uint8_t __max_vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
     _Size __n = {};                 // the size of the input
     _Size __short_segment_max = {}; // the length of the longest short segment
@@ -230,7 +230,7 @@ template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_chunk_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
-    static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
+    static constexpr std::uint8_t __max_vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
     _Size __n = {};            // the size of the input
     _Size __num_segments = {}; // the number of segments
@@ -282,7 +282,7 @@ template <typename _Acc, typename _Size, typename _BinaryOperation>
 struct __segmented_reduce_combine_brick
 {
     static constexpr std::uint8_t __iters_per_item = 1;
-    static constexpr std::uint8_t __vector_size = 1; // one segment or chunk per work-item, in a loop of its length
+    static constexpr std::uint8_t __max_vector_size = 1; // one segment or chunk per work-item, in a loop of its length
 
     _Size __num_partials = {};  // the number of the computed partial results
     bool __write_empty = false; // whether a segment without chunks gets the initial value; otherwise it is left as is

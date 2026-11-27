@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cassert>
+#include <limits>
 #include <type_traits>
 #include <tuple>
 
@@ -39,7 +40,27 @@ namespace dpl
 namespace __par_backend_hetero
 {
 
-template <typename... _Ranges>
+// The limit of the vector size of a brick of __parallel_for: its own __max_vector_size if it defines one, else none
+template <typename _Brick>
+class __brick_max_vector_size
+{
+    template <typename _F>
+    static std::integral_constant<std::uint8_t, _F::__max_vector_size>
+    test(int);
+
+    template <typename>
+    static std::integral_constant<std::uint8_t, std::numeric_limits<std::uint8_t>::max()>
+    test(...);
+
+  public:
+    constexpr static std::uint8_t value = decltype(test<_Brick>(0))::value;
+};
+template <typename _Brick>
+inline constexpr std::uint8_t __brick_max_vector_size_v = __brick_max_vector_size<_Brick>::value;
+
+// The parameters of a brick of __parallel_for for its ranges. The brick may limit the vector size by its own
+// __max_vector_size; it processes __vector_size adjacent indices per call.
+template <typename _Brick, typename... _Ranges>
 class __pfor_params
 {
     using _ValueTypes = std::tuple<oneapi::dpl::__internal::__value_t<_Ranges>...>;
@@ -47,14 +68,18 @@ class __pfor_params
     // Empirically determined 'bytes-in-flight' to maximize bandwidth utilization
     constexpr static std::uint8_t __bytes_per_item = 16;
     // Maximum size supported by compilers to generate vector instructions
-    constexpr static std::uint8_t __max_vector_size = 4;
+    constexpr static std::uint8_t __vector_size_cap = 4;
+
+    constexpr static bool __is_vectorizable_type =
+        (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
 
   public:
-    constexpr static bool __can_vectorize =
-        (std::is_fundamental_v<oneapi::dpl::__internal::__value_t<_Ranges>> && ...) && __min_type_size < 4;
-    // Vectorize for small types, so we generate 128-byte load / stores in a sub-group
-    constexpr static std::uint8_t __vector_size =
-        __can_vectorize ? oneapi::dpl::__internal::__dpl_ceiling_div(__max_vector_size, __min_type_size) : 1;
+    // Vectorize for small types, so we generate 128-byte load / stores in a sub-group, up to the limit of the brick
+    constexpr static std::uint8_t __vector_size = std::min<std::uint8_t>(
+        __is_vectorizable_type ? oneapi::dpl::__internal::__dpl_ceiling_div(__vector_size_cap, __min_type_size) : 1,
+        __brick_max_vector_size_v<_Brick>);
+    // The brick takes its vectorized path only for vectors of more than one element
+    constexpr static bool __can_vectorize = __vector_size > 1;
     constexpr static std::uint8_t __iters_per_item =
         std::max<std::uint8_t>(1, __bytes_per_item / (__min_type_size * __vector_size));
 };
@@ -69,6 +94,10 @@ struct __pfor_params_simple
 template <typename _Brick1, typename _Brick2>
 struct __dual_brick
 {
+    // The vector size must suit both bricks
+    static constexpr std::uint8_t __max_vector_size =
+        std::min(__brick_max_vector_size_v<_Brick1>, __brick_max_vector_size_v<_Brick2>);
+
     _Brick1 __brick1;
     _Brick2 __brick2;
     std::size_t __pivot; // the number of iterations for the first brick
@@ -97,7 +126,7 @@ class __iterations_per_item
     test(int);
 
     template <typename>
-    static std::integral_constant<std::uint8_t, __pfor_params<_Ranges...>::__iters_per_item>
+    static std::integral_constant<std::uint8_t, __pfor_params<_Brick, _Ranges...>::__iters_per_item>
     test(...);
 
   public:
@@ -105,25 +134,6 @@ class __iterations_per_item
 };
 template <typename _Brick, typename... _Ranges>
 inline constexpr std::uint8_t __iterations_per_item_v = __iterations_per_item<_Brick, _Ranges...>::value;
-
-// The vector size of a brick: its own __vector_size if it defines one, otherwise the one suggested for its ranges.
-// A brick which defines it processes that many adjacent indices per call.
-template <typename _Brick, typename... _Ranges>
-class __vector_size_per_item
-{
-    template <typename _F>
-    static std::integral_constant<std::uint8_t, _F::__vector_size>
-    test(int);
-
-    template <typename>
-    static std::integral_constant<std::uint8_t, __pfor_params<_Ranges...>::__vector_size>
-    test(...);
-
-  public:
-    constexpr static std::uint8_t value = decltype(test<_Brick>(0))::value;
-};
-template <typename _Brick, typename... _Ranges>
-inline constexpr std::uint8_t __vector_size_per_item_v = __vector_size_per_item<_Brick, _Ranges...>::value;
 
 template <typename... Name>
 class __parallel_for_small_kernel;
@@ -283,7 +293,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     __future<sycl::event>
     operator()(sycl::queue& __q, const sycl::event& __e, _Fp __brick, _Index __count, _Ranges&&... __rngs) const
     {
-        using __params_t = __pfor_params<_Ranges...>;
+        using __params_t = __pfor_params<_Fp, _Ranges...>;
         const std::uint16_t __work_group_size =
             oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
         _PRINT_INFO_IN_DEBUG_MODE(__q);
@@ -292,7 +302,7 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             __cgh.depends_on(__e);
             constexpr std::uint8_t __iters_per_work_item = __iterations_per_item_v<_Fp, _Ranges...>;
-            constexpr std::uint8_t __vector_size = __vector_size_per_item_v<_Fp, _Ranges...>;
+            constexpr std::uint8_t __vector_size = __params_t::__vector_size;
             const std::size_t __data_per_work_item = __iters_per_work_item * __vector_size;
             const std::size_t __num_groups =
                 __number_of_groups(__count, __work_group_size * __data_per_work_item, __brick);
@@ -337,7 +347,7 @@ __parallel_for_impl(sycl::queue& __q, const sycl::event& __e, _Fp __brick, _Inde
     // Compile two kernels: one for small-to-medium inputs and a second for large. This avoids runtime checks within a
     // single kernel that worsen performance for small cases. If the number of iterations of the large submitter is 1,
     // then only compile the basic kernel as the two versions are effectively the same.
-    if constexpr (__iters_per_work_item > 1 || __vector_size_per_item_v<_Fp, _Ranges...> > 1)
+    if constexpr (__iters_per_work_item > 1 || __pfor_params<_Fp, _Ranges...>::__vector_size > 1)
     {
         if (__count >= __large_submitter::__minimal_useful_size(__q, __iters_per_work_item))
         {
