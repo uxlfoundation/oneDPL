@@ -1917,8 +1917,10 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
 
     // use work group size adjusted to shared local memory as the maximum segment size.
     const std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
-        __q_local,
-        oneapi::dpl::__internal::__wg_size_limits().__set_slm_per_work_item(sizeof(__key_type) + sizeof(__val_type)));
+        __q_local, oneapi::dpl::__internal::__wg_size_limits(
+                       std::min(oneapi::dpl::__internal::__wg_size_default_cap,
+                                oneapi::dpl::__internal::__local_mem_work_group_size(
+                                    __q_local.get_device(), sizeof(__key_type) + sizeof(__val_type)))));
 
     // element is copied if it is the 0th element (marks beginning of first segment), is in an index
     // evenly divisible by wg size (ensures segments are not long), or has a key not equal to the

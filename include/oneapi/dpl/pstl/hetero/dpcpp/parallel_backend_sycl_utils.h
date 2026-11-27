@@ -77,6 +77,15 @@ __local_mem_size(const sycl::device& __device)
     return __device.template get_info<sycl::info::device::local_mem_size>() * _Share::num / _Share::den;
 }
 
+// The largest work-group size whose work-items, each needing __bytes_per_work_item of local memory, fit the local
+// memory of the device (or only a share of it, as for __local_mem_size)
+template <typename _Share = std::ratio<1>>
+std::size_t
+__local_mem_work_group_size(const sycl::device& __device, std::size_t __bytes_per_work_item)
+{
+    return __local_mem_size<_Share>(__device) / __bytes_per_work_item;
+}
+
 // The default cap of the work-group size: the highest limit of the tested hardware (opencl:cpu devices);
 // it prevents huge sizes returned by some devices (e.g., FPGA emulation).
 // The algorithms define their own caps next to their code.
@@ -94,14 +103,6 @@ class __wg_size_limits
 {
   public:
     explicit __wg_size_limits(std::size_t __cap_value = __wg_size_default_cap) : __cap(__cap_value) {}
-
-    // SLM bytes needed per work-item
-    __wg_size_limits&
-    __set_slm_per_work_item(std::size_t __bytes)
-    {
-        __slm_per_wi = __bytes;
-        return *this;
-    }
 
     __wg_size_limits&
     __set_rounding_mode(__wg_rounding __rounding_mode)
@@ -128,12 +129,6 @@ class __wg_size_limits
         return __cap;
     }
 
-    std::size_t
-    __get_slm_per_work_item() const
-    {
-        return __slm_per_wi;
-    }
-
     __wg_rounding
     __get_rounding_mode() const
     {
@@ -148,7 +143,6 @@ class __wg_size_limits
 
   private:
     std::size_t __cap = {};
-    std::size_t __slm_per_wi = {};
     __wg_rounding __rounding = __wg_rounding::__none;
     std::size_t __acpp_gpu_cap = std::numeric_limits<std::size_t>::max();
 };
@@ -260,9 +254,6 @@ __select_work_group_size(const sycl::queue& __q, const __wg_size_limits& __limit
     if (__device.is_gpu())
         __wg_size = std::min(__wg_size, __limits.__get_acpp_gpu_cap());
 #endif
-
-    if (__limits.__get_slm_per_work_item() > 0)
-        __wg_size = std::min(__wg_size, __local_mem_size(__device) / __limits.__get_slm_per_work_item());
 
     // A kernel may support fewer work-items per work-group than the device, e.g. by the registers it needs
     if constexpr (sizeof...(_Kernels) > 0)

@@ -150,8 +150,9 @@ __parallel_reduce_by_segment_fallback_with_group_algorithms(sycl::queue& __q, _R
     // Adjust the work-group size to the local memory limit. Double the requirement on __val_type due to sycl group
     // algorithm's use of SLM.
     std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
-        __q, oneapi::dpl::__internal::__wg_size_limits(__wg_size_reduce_by_segment_cap)
-                 .__set_slm_per_work_item(sizeof(__key_type) + 2 * sizeof(__val_type)));
+        __q, oneapi::dpl::__internal::__wg_size_limits(std::min(
+                 __wg_size_reduce_by_segment_cap, oneapi::dpl::__internal::__local_mem_work_group_size(
+                                                      __q.get_device(), sizeof(__key_type) + 2 * sizeof(__val_type)))));
 
 #if _ONEDPL_COMPILE_KERNEL
     auto __seg_reduce_count_kernel =

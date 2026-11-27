@@ -710,8 +710,9 @@ struct __parallel_multi_group_radix_sort
         using _CounterType = std::uint64_t;
         constexpr std::size_t __wg_size_radix_sort_count_cap = 128;
         std::size_t __wg_size_count = oneapi::dpl::__internal::__select_work_group_size(
-            __q, oneapi::dpl::__internal::__wg_size_limits(__wg_size_radix_sort_count_cap)
-                     .__set_slm_per_work_item(sizeof(_CounterType) * __radix_states));
+            __q, oneapi::dpl::__internal::__wg_size_limits(std::min(
+                     __wg_size_radix_sort_count_cap, oneapi::dpl::__internal::__local_mem_work_group_size(
+                                                         __q.get_device(), sizeof(_CounterType) * __radix_states))));
         // work-group size must be a power of 2 because of the tree reduction
         __wg_size_count =
             sycl::max(oneapi::dpl::__internal::__dpl_bit_floor(__wg_size_count), std::size_t(__radix_states));

@@ -457,8 +457,9 @@ __parallel_transform_reduce_async(oneapi::dpl::__internal::__device_backend_tag,
     // to the local memory limit. Pessimistically double the memory requirement to take into account memory used by
     // compiled kernel.
     const std::size_t __work_group_size = oneapi::dpl::__internal::__select_work_group_size(
-        __q_local,
-        oneapi::dpl::__internal::__wg_size_limits(__wg_size_reduce_cap).__set_slm_per_work_item(sizeof(_Tp) * 2));
+        __q_local, oneapi::dpl::__internal::__wg_size_limits(std::min(
+                       __wg_size_reduce_cap,
+                       oneapi::dpl::__internal::__local_mem_work_group_size(__q_local.get_device(), sizeof(_Tp) * 2))));
     const _Size __max_elements_per_wg = __work_group_size * __max_iters_per_work_item;
 
     // Use single work group implementation if less than __max_iters_per_work_item elements per work-group.
