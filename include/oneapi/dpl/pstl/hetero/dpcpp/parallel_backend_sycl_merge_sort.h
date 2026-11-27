@@ -666,6 +666,12 @@ struct __merge_sort_copy_back_submitter<__internal::__optional_kernel_name<_Copy
 template <typename... _Name>
 class __sort_leaf_kernel;
 
+// The name of the leaf sort kernel: named also for a policy with the default name, so that it can be queried
+template <typename _CustomName, typename _Range, typename _Compare>
+using __sort_leaf_kernel_name =
+    oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__sort_leaf_kernel, _CustomName,
+                                                                           std::decay_t<_Range>, _Compare>;
+
 template <typename... _Name>
 class __diagonals_kernel_name_for_merge_sort;
 
@@ -685,8 +691,8 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
 {
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
-    using _LeafSortKernel =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_leaf_kernel<_CustomName>>;
+    using _LeafSortKernel = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+        __sort_leaf_kernel_name<_CustomName, _Range, _Compare>>;
     using _DiagonalsKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __diagonals_kernel_name_for_merge_sort<_CustomName, _IndexT>>;
     using _GlobalSortKernel1 = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -732,8 +738,17 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp, __mer
 
     // The user comparator runs in the kernel and may need many registers
     constexpr std::size_t __wg_size_merge_sort_leaf_acpp_gpu_cap = 256;
+#if _ONEDPL_COMPILE_KERNEL
+    // The kernel may support fewer work-items per work-group, e.g. by the registers the user comparator needs
+    const sycl::kernel __leaf_kernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_compiler<
+        __sort_leaf_kernel_name<_CustomName, _Range, _Compare>>::__compile(__q);
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q, oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_merge_sort_leaf_acpp_gpu_cap),
+        __leaf_kernel);
+#else
     const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
         __q, oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_merge_sort_leaf_acpp_gpu_cap));
+#endif
 
     const bool __is_cpu = __device.is_cpu();
     // At least 1 even if the device reports no sub-group sizes
