@@ -309,7 +309,7 @@ __pattern_reduce_by_segment_offsets(__hetero_tag<_BackendTag>, _ExecutionPolicy&
     auto __keep_offsets = oneapi::dpl::__ranges::__get_sycl_range<__par_backend_hetero::access_mode::read>();
     auto __offsets_buf = __keep_offsets(__offsets, __offsets + __num_segments + 1);
 
-    __par_backend_hetero::__parallel_reduce_by_segment_offsets(
+    __par_backend_hetero::__parallel_reduce_by_segment_offsets<_Acc>{}(
         _BackendTag{}, std::forward<_ExecutionPolicy>(__exec), __input_buf.all_view(), __offsets_buf.all_view(),
         __result_buf.all_view(), _Size(__last - __first), _Size(__num_segments), std::move(__init_acc), __binary_op);
 

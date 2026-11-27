@@ -19,11 +19,11 @@
 //!!! NOTE: This file should be included under the macro _ONEDPL_BACKEND_SYCL
 #include <array>
 #include <type_traits>
-#include <algorithm> // std::min, std::find
+#include <algorithm> // std::min, std::max, std::find
 #include <functional>
 #include <utility>
 #include <cstddef>
-#include <cstdint> // std::uint8_t
+#include <cstdint> // std::uint8_t, std::uint32_t
 #include <cassert>
 #include <vector>
 
@@ -102,6 +102,32 @@ __max_compute_units(const sycl::queue& __q)
 {
     return __q.get_device().template get_info<sycl::info::device::max_compute_units>();
 }
+
+// The compute units of a device, for GPUs the number of its cores, and its hardware threads, to size a launch by any.
+struct __device_compute_units
+{
+    static constexpr std::uint32_t __compute_units_per_gpu_core = 8;
+    // Hardware threads per compute unit of a non-GPU device and of a GPU that does not report them
+    static constexpr std::uint32_t __default_threads_per_compute_unit = 8;
+
+    std::uint32_t __max_compute_units = 0;
+    std::uint32_t __num_xe_cores = 0;
+    std::size_t __hw_threads = 0;
+
+    explicit __device_compute_units(const sycl::queue& __q)
+        : __max_compute_units(oneapi::dpl::__internal::__max_compute_units(__q)),
+          __num_xe_cores(std::max(1u, __max_compute_units / __compute_units_per_gpu_core))
+    {
+        std::uint32_t __threads_per_compute_unit = __default_threads_per_compute_unit;
+#if defined(SYCL_EXT_INTEL_DEVICE_INFO)
+        const sycl::device __device = __q.get_device();
+        if (__device.is_gpu() && __device.has(sycl::aspect::ext_intel_gpu_hw_threads_per_eu))
+            __threads_per_compute_unit =
+                std::max(1u, std::uint32_t(__device.get_info<sycl::ext::intel::info::device::gpu_hw_threads_per_eu>()));
+#endif
+        __hw_threads = std::max<std::size_t>(1, std::size_t{__max_compute_units} * __threads_per_compute_unit);
+    }
+};
 
 inline bool
 __supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
@@ -879,6 +905,33 @@ struct __strided_loop
         }
     }
 };
+
+// oneapi::dpl::__internal::__pstl_lower_bound_impl by a whole group: the first index of [__first, __last) where
+// __comp(index), true on a prefix, is false. Each step tests an index a work-item, so the dependent steps are about
+// log(__last - __first) / log(group size + 1); all work-items pass the same arguments. A non-zero _GroupSize
+// gives the group size at compile time, turning the division of each step into a shift
+template <std::uint32_t _GroupSize = 0, typename _Group, typename _Size, typename _Compare>
+_Size
+__group_lower_bound(const _Group __group, _Size __first, _Size __last, _Compare __comp)
+{
+    const _Size __item = _Size(__group.get_local_linear_id());
+    const _Size __items = _GroupSize > 0 ? _Size(_GroupSize) : _Size(__group.get_local_linear_range());
+    while (__first < __last)
+    {
+        // At most one index a work-item, the last at __last - 1 or before
+        const _Size __step = oneapi::dpl::__internal::__dpl_ceiling_div(__last - __first, __items);
+        const _Size __idx = __first + (__item + 1) * __step - 1;
+        const bool __is_true = __idx < __last && std::invoke(__comp, __idx);
+
+        // The count of true indices fits in 32 bits, which keeps the reduction narrow for a work-group too
+        const std::uint32_t __count =
+            __dpl_sycl::__reduce_over_group(__group, std::uint32_t(__is_true ? 1 : 0), sycl::plus<std::uint32_t>());
+        __first += _Size(__count) * __step;
+        __last = std::min<_Size>(__last, __first + __step - 1);
+    }
+
+    return __first;
+}
 
 } // namespace __par_backend_hetero
 } // namespace dpl
