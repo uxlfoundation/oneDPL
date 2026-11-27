@@ -76,8 +76,9 @@ __reduce_then_scan_work_group_size_cap(bool __is_gpu)
 #if _ONEDPL_ACPP_VERSION
     // AdaptiveCpp has no query of the work-group size limit of a kernel, and its kernels compiled ahead of time for
     // NVIDIA GPUs have no launch bounds: a launch of 1024 work-items of a kernel needing more than 64 registers per
-    // work-item fails, and the failure is not reported. 512 work-items leave up to 128 registers per work-item.
-    return __is_gpu ? 512 : 128;
+    // work-item fails, and the failure is not reported. 256 work-items leave up to 255 registers per work-item, the
+    // most a kernel can use there, so the launch fits whatever the value types are.
+    return __is_gpu ? 256 : 128;
 #else
     return __is_gpu ? 1024 : 128;
 #endif
