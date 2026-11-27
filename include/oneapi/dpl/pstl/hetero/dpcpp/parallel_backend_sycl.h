@@ -227,7 +227,8 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
 {
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
+    const std::size_t __max_wg_size =
+        oneapi::dpl::__internal::__select_work_group_size(__q, oneapi::dpl::__internal::__wg_size_limits());
 
     // Specialization for devices that have a max work-group size of 1024
     constexpr ::std::uint16_t __targeted_wg_size = 1024;
@@ -639,7 +640,8 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     sycl::queue __q_local = __exec.queue();
 
     constexpr std::size_t __max_elem_per_item = 2;
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+    const std::size_t __max_wg_size =
+        oneapi::dpl::__internal::__select_work_group_size(__q_local, oneapi::dpl::__internal::__wg_size_limits());
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory(__q_local, __n))
@@ -731,7 +733,8 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     sycl::queue __q_local = __exec.queue();
 
     constexpr std::size_t __max_elem_per_item = 2;
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+    const std::size_t __max_wg_size =
+        oneapi::dpl::__internal::__select_work_group_size(__q_local, oneapi::dpl::__internal::__wg_size_limits());
 
     // Note: earlier the data size for the single group kernel was capped by 2048
     // The change might impact platforms with __max_wg_size > 1024
@@ -771,7 +774,8 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
     oneapi::dpl::__internal::__not_pred<_Pred> __keep_pred{__pred};
 
     constexpr std::size_t __max_elem_per_item = 5;
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+    const std::size_t __max_wg_size =
+        oneapi::dpl::__internal::__select_work_group_size(__q_local, oneapi::dpl::__internal::__wg_size_limits());
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
@@ -802,7 +806,8 @@ __parallel_unique(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolic
     sycl::queue __q_local = __exec.queue();
 
     constexpr std::size_t __max_elem_per_item = 5;
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+    const std::size_t __max_wg_size =
+        oneapi::dpl::__internal::__select_work_group_size(__q_local, oneapi::dpl::__internal::__wg_size_limits());
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
@@ -1137,7 +1142,9 @@ struct __parallel_find_or_nd_range_tuner
         // TODO: find a way to generalize getting of reliable work-group size
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        const std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
+        constexpr std::size_t __wg_size_find_or_cap = 4096;
+        const std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__wg_size_find_or_cap));
         std::size_t __n_groups = 1;
         // If no more than 32 data elements per work item, a single work group will be used
         if (__rng_n > __wgroup_size * 32)
@@ -1805,8 +1812,9 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                                    oneapi::dpl::__ranges::views::all_write(__idx));
 
     // use work group size adjusted to shared local memory as the maximum segment size.
-    std::size_t __wgroup_size =
-        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q_local, sizeof(__key_type) + sizeof(__val_type));
+    const std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q_local,
+        oneapi::dpl::__internal::__wg_size_limits().__set_slm_per_work_item(sizeof(__key_type) + sizeof(__val_type)));
 
     // element is copied if it is the 0th element (marks beginning of first segment), is in an index
     // evenly divisible by wg size (ensures segments are not long), or has a key not equal to the

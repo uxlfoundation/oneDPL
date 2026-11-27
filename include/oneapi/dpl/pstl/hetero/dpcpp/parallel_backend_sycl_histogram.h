@@ -426,7 +426,10 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
 
     const std::uint32_t __num_bins = oneapi::dpl::__ranges::__size(__bins);
     // Limit the maximum work-group size for better performance. Empirically found value.
-    std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::uint16_t(1024));
+    constexpr std::size_t __wg_size_histogram_cap = 1024;
+    const std::uint16_t __work_group_size =
+        static_cast<std::uint16_t>(oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__wg_size_histogram_cap)));
 
     // Reserve some SLM as headroom for runtime overhead.
     const std::size_t __local_mem_size = oneapi::dpl::__internal::__local_mem_size<std::ratio<4, 5>>(__q.get_device());

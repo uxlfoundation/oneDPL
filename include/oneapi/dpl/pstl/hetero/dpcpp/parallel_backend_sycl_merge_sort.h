@@ -341,7 +341,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     std::size_t
     get_max_base_diags_count(const sycl::queue& __q, const _IndexT __chunk, std::size_t __n) const
     {
-        const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
+        const std::size_t __max_wg_size =
+            oneapi::dpl::__internal::__select_work_group_size(__q, oneapi::dpl::__internal::__wg_size_limits());
         return oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk * __max_wg_size);
     }
 
@@ -729,7 +730,7 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp, __mer
     const std::size_t __n = oneapi::dpl::__ranges::__size(__rng);
     sycl::device __device = __q.get_device();
 
-    const std::size_t __max_wg_size = __device.template get_info<sycl::info::device::max_work_group_size>();
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__device);
 
     const bool __is_cpu = __device.is_cpu();
     // At least 1 even if the device reports no sub-group sizes
