@@ -2523,13 +2523,16 @@ __parallel_transform_reduce_then_scan_impl(
     constexpr std::size_t __wg_size_reduce_then_scan_acpp_gpu_cap = 256;
     const std::size_t __wg_size_cap =
         __target_is_gpu ? __wg_size_reduce_then_scan_gpu_cap : __wg_size_reduce_then_scan_cpu_cap;
-    // Without sub-group operations (e.g. for value types that are not trivially copyable) every work-item and every
-    // sub-group keep a value in SLM; pessimistically double it to take into account memory used by compiled kernel
+    // Without sub-group operations (e.g. for value types that are not trivially copyable) a work-group keeps
+    // __wg + ceil(__wg / __min_sub_group_size) + 1 values in SLM: one per work-item and one per sub-group, plus one.
+    // Counting sizeof + ceil(sizeof / __min_sub_group_size) bytes per work-item and two work-items fewer covers them.
+    // 1/32 of SLM is left for the runtime, which allocates SLM in granules (e.g. 1 KB, plus 32 bytes for the kernel).
+    const std::size_t __slm_bytes_per_work_item =
+        sizeof(_ValueType) + __dpl_ceiling_div(sizeof(_ValueType), static_cast<std::size_t>(__min_sub_group_size));
+    const std::size_t __slm_wg_size =
+        oneapi::dpl::__internal::__local_mem_work_group_size<std::ratio<31, 32>>(__device, __slm_bytes_per_work_item);
     const std::size_t __cap =
-        __use_subgroup_ops
-            ? __wg_size_cap
-            : std::min(__wg_size_cap,
-                       oneapi::dpl::__internal::__local_mem_work_group_size(__device, 2 * sizeof(_ValueType)));
+        __use_subgroup_ops ? __wg_size_cap : std::min(__wg_size_cap, __slm_wg_size > 2 ? __slm_wg_size - 2 : 0);
     // Rounded down to a multiple of the max sub-group size to ensure compatibility with all sub-group sizes
     std::uint32_t __work_group_size = static_cast<std::uint32_t>(oneapi::dpl::__internal::__select_work_group_size(
         __q, oneapi::dpl::__internal::__wg_size_limits(__cap)
