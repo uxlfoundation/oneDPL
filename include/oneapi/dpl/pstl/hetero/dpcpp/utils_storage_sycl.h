@@ -21,8 +21,6 @@
 #include <cstddef>
 #include <cassert>
 
-#include <new> // std::bad_alloc - only used in __sycl_usm_alloc
-
 #include "sycl_defs.h"
 #include "sycl_iterator.h"
 #include "../../tuple_impl.h"
@@ -86,7 +84,7 @@ __free_usm(const sycl::queue& __q, void* __memory)
         sycl::free(__memory, __q);
 }
 
-struct __sycl_usm_free
+struct __usm_deleter
 {
     std::optional<sycl::queue> __q;
 
@@ -97,17 +95,6 @@ struct __sycl_usm_free
         __free_usm(*__q, __memory);
     }
 };
-
-// TODO: remove this function once it is no more used in __result_and_scratch_storage
-template <typename _T, sycl::usm::alloc __alloc_t>
-_T*
-__sycl_usm_alloc(const sycl::queue& __q, std::size_t __elements)
-{
-    if (_T* __buf = sycl::malloc<_T>(__elements, __q, __alloc_t))
-        return __buf;
-
-    throw std::bad_alloc();
-}
 
 template <typename _T, sycl::usm::alloc __alloc_t>
 _T*
@@ -193,9 +180,8 @@ struct __no_storage_tag
 template <typename _T>
 struct __copyable_storage_state
 {
-    std::shared_ptr<_T> __result_buf = nullptr;
-    std::shared_ptr<_T> __scratch_buf = nullptr;
-    std::optional<sycl::buffer<_T, 1>> __sycl_buf;
+    std::shared_ptr<_T> __usm_buf = nullptr;
+    mutable std::optional<sycl::buffer<_T, 1>> __sycl_buf; // reading data can modify the buffer
     std::size_t __result_sz = 0;
     std::size_t __offset = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
@@ -204,13 +190,13 @@ struct __copyable_storage_state
 inline __copyable_storage_state<std::byte>
 __move_state(__scratch_raw_state&& __raw_st, const sycl::queue& __q)
 {
-    __copyable_storage_state<std::byte> __state{nullptr, nullptr, std::move(__raw_st.__sycl_buf)};
+    __copyable_storage_state<std::byte> __state{nullptr, std::move(__raw_st.__sycl_buf)};
     if (__raw_st.__usm_ptr)
     {
         std::byte* __tmpptr = static_cast<std::byte*>(__raw_st.__usm_ptr);
         __raw_st.__usm_ptr = nullptr; // clear in advance, in case the ctor of shared_ptr throws and calls the deleter
         __state.__kind = sycl::usm::alloc::device;
-        __state.__scratch_buf = std::shared_ptr<std::byte>(__tmpptr, __sycl_usm_free{__q});
+        __state.__usm_buf = std::shared_ptr<std::byte>(__tmpptr, __usm_deleter{__q});
     }
     __raw_st.__sycl_buf.reset();
     return __state;
@@ -220,16 +206,13 @@ template <typename _T>
 __copyable_storage_state<_T>
 __move_state(__result_raw_state<_T>&& __raw_st, const sycl::queue& __q)
 {
-    __copyable_storage_state<_T> __state{nullptr, nullptr, std::move(__raw_st.__sycl_buf),
-                                         __raw_st.__result_sz, __raw_st.__offset, __raw_st.__kind};
+    __copyable_storage_state<_T> __state{nullptr, std::move(__raw_st.__sycl_buf), __raw_st.__result_sz,
+                                         __raw_st.__offset, __raw_st.__kind};
     if (__raw_st.__usm_ptr)
     {
         _T* __tmpptr = __raw_st.__usm_ptr;
         __raw_st.__usm_ptr = nullptr; // clear in advance, in case the ctor of shared_ptr throws and calls the deleter
-        if (__raw_st.__kind == sycl::usm::alloc::host)
-            __state.__result_buf = std::shared_ptr<_T>(__tmpptr, __sycl_usm_free{__q});
-        else
-            __state.__scratch_buf = std::shared_ptr<_T>(__tmpptr, __sycl_usm_free{__q});
+        __state.__usm_buf = std::shared_ptr<_T>(__tmpptr, __usm_deleter{__q});
     }
     __raw_st.__sycl_buf.reset();
     return __state;
@@ -311,7 +294,7 @@ struct __device_storage
 {
     using type = _T;
 
-    std::unique_ptr<_T, __internal::__sycl_usm_free> __usm_buf = nullptr;
+    std::unique_ptr<_T, __internal::__usm_deleter> __usm_buf = nullptr;
     sycl::buffer<_T, 1> __sycl_buf =
 #if _ONEDPL_SYCL2020_DEFAULT_ACCESSOR_CONSTRUCTOR_BROKEN
         {sycl::range{1}}; // A non-empty buffer to avoid problems with accessor construction
@@ -343,7 +326,7 @@ struct __device_storage
         assert(__n > 0);
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::device>(__q, __n);
         if (__ptr)
-            __usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __usm_buf = std::unique_ptr<_T, __internal::__usm_deleter>(__ptr, __internal::__usm_deleter{__q});
         else
             __sycl_buf = sycl::buffer<_T, 1>(__n);
     }
@@ -420,7 +403,7 @@ struct __result_storage : public __device_storage<_T>
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
         if (__ptr)
         {
-            this->__usm_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            this->__usm_buf = std::unique_ptr<_T, __internal::__usm_deleter>(__ptr, __internal::__usm_deleter{__q});
             __kind = sycl::usm::alloc::host;
         }
         else
@@ -465,7 +448,7 @@ struct __combined_storage : public __device_storage<_T>
 
     static_assert(sycl::is_device_copyable_v<_T>, "The type _T must be device copyable to use __combined_storage.");
 
-    std::unique_ptr<_T, __internal::__sycl_usm_free> __result_buf = nullptr;
+    std::unique_ptr<_T, __internal::__usm_deleter> __result_buf = nullptr;
     std::size_t __sz = 0;
     std::size_t __result_sz = 0;
     sycl::usm::alloc __kind = sycl::usm::alloc::unknown;
@@ -477,7 +460,7 @@ struct __combined_storage : public __device_storage<_T>
         _T* __ptr = __internal::__allocate_usm<_T, sycl::usm::alloc::host>(__q, __result_sz);
         if (__ptr)
         {
-            __result_buf = std::unique_ptr<_T, __internal::__sycl_usm_free>(__ptr, __internal::__sycl_usm_free{__q});
+            __result_buf = std::unique_ptr<_T, __internal::__usm_deleter>(__ptr, __internal::__usm_deleter{__q});
             this->__initialize(__q, __sz); // a separate scratch buffer
             __kind = sycl::usm::alloc::host;
         }
