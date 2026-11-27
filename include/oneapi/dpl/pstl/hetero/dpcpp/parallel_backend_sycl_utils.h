@@ -94,11 +94,18 @@ __slm_adjusted_work_group_size(const sycl::queue& __q, _Size __local_mem_per_wi,
     return std::min<_Size>(__local_mem_size / __local_mem_per_wi, __wg_size);
 }
 
+// The sub-group sizes supported by the device; the list may be empty and is not guaranteed to be sorted
+inline std::vector<std::size_t>
+__sub_group_sizes(const sycl::device& __device)
+{
+    return __device.template get_info<sycl::info::device::sub_group_sizes>();
+}
+
 #if _ONEDPL_USE_SUB_GROUPS
 inline std::size_t
 __max_sub_group_size(const sycl::queue& __q)
 {
-    auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
+    const std::vector<std::size_t> __supported_sg_sizes = __sub_group_sizes(__q.get_device());
     //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 0
     return __supported_sg_sizes.empty() ? 0 : __supported_sg_sizes.back();
 }
@@ -106,7 +113,7 @@ __max_sub_group_size(const sycl::queue& __q)
 inline std::size_t
 __min_sub_group_size(const sycl::queue& __q)
 {
-    auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
+    const std::vector<std::size_t> __supported_sg_sizes = __sub_group_sizes(__q.get_device());
     //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 1
     return __supported_sg_sizes.empty() ? 1 : __supported_sg_sizes.front();
 }
@@ -121,8 +128,7 @@ __max_compute_units(const sycl::queue& __q)
 inline bool
 __supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
 {
-    const std::vector<std::size_t> __subgroup_sizes =
-        __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
+    const std::vector<std::size_t> __subgroup_sizes = __sub_group_sizes(__q.get_device());
     return std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), __target_size) != __subgroup_sizes.end();
 }
 
