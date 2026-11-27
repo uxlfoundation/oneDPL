@@ -159,6 +159,13 @@ jobs:
             build_type: RelWithAsserts
             backend: serial
             device_type: HOST
+          - os: ubuntu-24.04 # LLVM 18 packages used to build AdaptiveCpp target Ubuntu 24.04.
+            ci_slot: 6
+            cxx_compiler: acpp
+            std: 17
+            build_type: release
+            backend: dpcpp_only
+            device_type: cpu
     steps:
       - uses: actions/checkout@v6
       - name: Set up Intel® oneAPI
@@ -166,6 +173,9 @@ jobs:
         with:
           tbb: ${{ matrix.backend == 'tbb' || matrix.backend == 'dpcpp' }}
           compiler: ${{ matrix.cxx_compiler == 'icpx' }}
+      - name: Set up AdaptiveCpp
+        if: matrix.cxx_compiler == 'acpp'
+        uses: ./.github/actions/setup-linux-acpp
       - name: Install OpenMP dependencies
         if: (matrix.os == 'ubuntu-latest' && matrix.cxx_compiler == 'clang++' && matrix.backend == 'omp')
         run: |
