@@ -19,8 +19,11 @@
 // Wrapper to adjust rotate_copy to the format expected by the test harness
 struct
 {
+    // Explicit return type to avoid body and extra kernel instantiations in the dangling return type checks
     template <typename Policy, std::ranges::random_access_range InRange, std::ranges::random_access_range OutRange>
-    auto operator()(Policy&& exec, InRange&& r_in, OutRange&& r_out, int pivot_pos = -1)
+    auto operator()(Policy&& exec, InRange&& r_in, OutRange&& r_out, int pivot_pos = -1) const
+        -> decltype(oneapi::dpl::ranges::rotate_copy(std::forward<Policy>(exec), std::forward<InRange>(r_in),
+                                                     std::ranges::begin(r_in), std::forward<OutRange>(r_out)))
     {
         const int in_size = std::ranges::size(r_in);
         auto middle = std::ranges::begin(r_in) + ((pivot_pos < 0)? in_size/3 : std::min<int>(pivot_pos, in_size));
