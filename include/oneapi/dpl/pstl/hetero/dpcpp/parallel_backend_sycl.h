@@ -289,7 +289,7 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
                          std::size_t __single_group_upper_limit)
 {
     // Pessimistically only use half of the memory to take into account memory used by compiled kernel
-    const std::size_t __max_slm_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+    const std::size_t __max_slm_size = oneapi::dpl::__internal::__local_mem_size<std::ratio<1, 2>>(__q.get_device());
     const auto __req_slm_size = sizeof(_Type) * __n_uniform;
 
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
@@ -377,7 +377,7 @@ struct __parallel_filter_single_group_base
     __enough_local_memory(sycl::queue __q, _Size __n, std::size_t __element_size = 0)
     {
         // Pessimistically expect only half of local memory to account for possible memory use by the compiled code
-        std::size_t __available = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+        const std::size_t __available = oneapi::dpl::__internal::__local_mem_size<std::ratio<1, 2>>(__q.get_device());
         return __available >= __local_memory_needed<__is_in_place>(__n, __element_size).first * sizeof(std::uint16_t);
     }
 
@@ -874,7 +874,7 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
     // Partition into blocks based on SLM size. We want this to fit within L1 cache, and SLM is a related concept and
     // can be queried based upon the device. Performance is not sensitive to exact size in practice.
     const std::size_t __partition_size =
-        __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
+        oneapi::dpl::__internal::__local_mem_size<std::ratio<1, 2>>(__q.get_device()) / __average_input_ele_size;
 
     _GenReduceInput __gen_reduce_input{_SetOperation{},
                                        __diagonal_spacing,

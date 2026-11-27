@@ -429,8 +429,7 @@ __parallel_histogram_select_kernel(sycl::queue& __q, const sycl::event& __init_e
     std::uint16_t __work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, std::uint16_t(1024));
 
     // Reserve some SLM as headroom for runtime overhead.
-    const std::size_t __local_mem_size =
-        (__q.get_device().template get_info<sycl::info::device::local_mem_size>() * 4) / 5;
+    const std::size_t __local_mem_size = oneapi::dpl::__internal::__local_mem_size<std::ratio<4, 5>>(__q.get_device());
 
     // Upper bound on useful copies: one per sub-group lane (replicas indexed by lane id).
     // Use device's max sub-group size (the realized SIMD width for ordinary kernels on Intel

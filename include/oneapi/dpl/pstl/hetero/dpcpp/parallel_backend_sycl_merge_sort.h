@@ -757,8 +757,7 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp, __mer
 
     // Pessimistically double the memory requirement to take into account memory used by compiled kernel.
     // TODO: investigate if the adjustment can be less conservative
-    const std::size_t __max_slm_items =
-        __device.template get_info<sycl::info::device::local_mem_size>() / (sizeof(_Tp) * 2);
+    const std::size_t __max_slm_items = oneapi::dpl::__internal::__local_mem_size(__device) / (sizeof(_Tp) * 2);
 
     const std::size_t __max_slm_wg_size = __max_slm_items / _Leaf::storage_size(__data_per_workitem, 1);
     // __n is taken as is because of the bit floor and processing at least 2 items per work-item

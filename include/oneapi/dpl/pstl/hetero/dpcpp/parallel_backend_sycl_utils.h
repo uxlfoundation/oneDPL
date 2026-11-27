@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdint> // std::uint8_t
 #include <cassert>
+#include <ratio> // std::ratio
 #include <vector>
 
 #include "sycl_defs.h"
@@ -84,14 +85,22 @@ __reduce_then_scan_work_group_size_cap(bool __is_gpu)
 #endif
 }
 
+// The local memory size of the device, or only a share of it, e.g. std::ratio<1, 2> to leave room for the memory used
+// by the compiled kernel
+template <typename _Share = std::ratio<1>>
+std::size_t
+__local_mem_size(const sycl::device& __device)
+{
+    return __device.template get_info<sycl::info::device::local_mem_size>() * _Share::num / _Share::den;
+}
+
 template <typename _Size>
 _Size
 __slm_adjusted_work_group_size(const sycl::queue& __q, _Size __local_mem_per_wi, _Size __wg_size = 0)
 {
     if (__wg_size == 0)
         __wg_size = __max_work_group_size(__q);
-    auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
-    return std::min<_Size>(__local_mem_size / __local_mem_per_wi, __wg_size);
+    return std::min<_Size>(__local_mem_size(__q.get_device()) / __local_mem_per_wi, __wg_size);
 }
 
 // The sub-group sizes supported by the device; the list may be empty and is not guaranteed to be sorted
