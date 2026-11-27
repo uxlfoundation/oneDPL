@@ -71,5 +71,5 @@ main()
 
     EXPECT_TRUE(ret, "Wrong result of member object check");
 
-    return 0;
+    return TestUtils::done();
 }

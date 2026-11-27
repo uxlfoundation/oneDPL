@@ -113,5 +113,5 @@ main()
 {
     kernel_test();
 
-    return 0;
+    return TestUtils::done();
 }

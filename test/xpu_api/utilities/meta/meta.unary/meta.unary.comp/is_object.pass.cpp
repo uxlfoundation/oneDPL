@@ -131,5 +131,5 @@ main()
 
     EXPECT_TRUE(ret, "Wrong result of `is_object` check");
 
-    return 0;
+    return TestUtils::done();
 }
