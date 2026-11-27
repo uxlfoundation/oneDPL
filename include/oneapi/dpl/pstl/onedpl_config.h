@@ -258,7 +258,7 @@
 // Some  C++ standard libraries contain 'exclusive_scan' declaration (version with binary_op)
 // w/o "enable_if". So, a call 'exclusive_scan' may be ambiguous in case of a custom policy using.
 #define _ONEDPL_EXCLUSIVE_SCAN_WITH_BINARY_OP_AMBIGUITY                                                                \
-    (_ONEDPL___cplusplus >= 201703L && __GLIBCXX__ && __GLIBCXX__ > 20190503)
+    (_ONEDPL___cplusplus >= 201703L && (_GLIBCXX_RELEASE > 9 || (_GLIBCXX_RELEASE == 9 && __GLIBCXX__ >= 20200312)))
 
 // some algorithms in <numeric> such as 'reduce' were added since libstdc++-9.3, we
 // have to provide our own implementation if legacy libstdc++ is in use.
