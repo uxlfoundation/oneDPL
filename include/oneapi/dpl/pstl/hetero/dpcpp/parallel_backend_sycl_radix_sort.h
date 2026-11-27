@@ -715,7 +715,7 @@ struct __parallel_multi_group_radix_sort
             sycl::max(oneapi::dpl::__internal::__dpl_bit_floor(__wg_size_count), std::size_t(__radix_states));
         std::size_t __wg_size_scan = oneapi::dpl::__internal::__max_work_group_size(__q, 1024);
         std::size_t __wg_size_reorder = oneapi::dpl::__internal::__max_work_group_size(__q, 256);
-        std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q);
+        const std::size_t __reorder_min_sg_size = oneapi::dpl::__internal::__min_sub_group_size(__q.get_device());
 
         constexpr std::uint32_t __unroll_elements = 8;
         // Keys per work-item in counting phase, recalculates based upon workgroup size for reorder phase.

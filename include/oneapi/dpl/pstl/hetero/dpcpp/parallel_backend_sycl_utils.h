@@ -109,15 +109,13 @@ __max_sub_group_size(const sycl::device& __device)
     return __sg_sizes.empty() ? 0 : *std::max_element(__sg_sizes.begin(), __sg_sizes.end());
 }
 
-#if _ONEDPL_USE_SUB_GROUPS
+// The smallest sub-group size of the device, or 1 if the device reports none
 inline std::size_t
-__min_sub_group_size(const sycl::queue& __q)
+__min_sub_group_size(const sycl::device& __device)
 {
-    const std::vector<std::size_t> __supported_sg_sizes = __sub_group_sizes(__q.get_device());
-    //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 1
-    return __supported_sg_sizes.empty() ? 1 : __supported_sg_sizes.front();
+    const std::vector<std::size_t> __sg_sizes = __sub_group_sizes(__device);
+    return __sg_sizes.empty() ? 1 : *std::min_element(__sg_sizes.begin(), __sg_sizes.end());
 }
-#endif // _ONEDPL_USE_SUB_GROUPS
 
 inline std::uint32_t
 __max_compute_units(const sycl::queue& __q)
