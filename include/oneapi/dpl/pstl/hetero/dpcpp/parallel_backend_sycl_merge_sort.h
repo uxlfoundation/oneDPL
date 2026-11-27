@@ -732,12 +732,10 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp, __mer
     const std::size_t __max_wg_size = __device.template get_info<sycl::info::device::max_work_group_size>();
 
     const bool __is_cpu = __device.is_cpu();
-    std::uint32_t __max_sg_size{};
-    if (__is_cpu)
-    {
-        const auto __sg_sizes = __device.template get_info<sycl::info::device::sub_group_sizes>();
-        __max_sg_size = *std::max_element(__sg_sizes.begin(), __sg_sizes.end());
-    }
+    // At least 1 even if the device reports no sub-group sizes
+    const std::uint32_t __max_sg_size = __is_cpu ? static_cast<std::uint32_t>(std::max<std::size_t>(
+                                                       1, oneapi::dpl::__internal::__max_sub_group_size(__device)))
+                                                 : 0;
     // Assume CPUs handle one sub-group (SIMD) per CU;
     // Assume GPUs handle multiple sub-groups per CU,
     // while the maximum work-group size takes hardware multithreading (occupancy) into account

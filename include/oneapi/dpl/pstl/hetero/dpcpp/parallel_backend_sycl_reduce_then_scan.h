@@ -2519,10 +2519,10 @@ __parallel_transform_reduce_then_scan_impl(
     // on the device (see __get_reduce_then_scan_actual_sub_group_size): a compile-time constant on the SPIR-V path and
     // the actual per-sub-group get_local_range() otherwise.
     const auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    const auto [__min_sg_it, __max_sg_it] =
-        std::minmax_element(__supported_sg_sizes.begin(), __supported_sg_sizes.end());
-    const std::uint8_t __min_sub_group_size = *__min_sg_it;
-    const std::uint8_t __max_sub_group_size = *__max_sg_it;
+    const std::uint8_t __min_sub_group_size =
+        *std::min_element(__supported_sg_sizes.begin(), __supported_sg_sizes.end());
+    const std::uint8_t __max_sub_group_size =
+        static_cast<std::uint8_t>(oneapi::dpl::__internal::__max_sub_group_size(__q.get_device()));
     // Empirically determined maximum. May be less for non-full blocks.
     const bool __target_is_gpu = __q.get_device().is_gpu();
     constexpr bool __inclusive = _Inclusive::value;
