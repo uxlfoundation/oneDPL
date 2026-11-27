@@ -23,12 +23,7 @@ if [[ -f "${LINUX_ONEAPI_PATH}/setvars.sh" ]]; then
   source "${LINUX_ONEAPI_PATH}/setvars.sh"
 fi
 
-if [[ "${CXX_COMPILER}" == "acpp" ]]; then
-  # Build the SYCL test subset excluding targets known to fail compilation with AdaptiveCpp:
-  # - multiple_translation_units.pass includes DPC++-only kernel templates;
-  # - test_sycl_iterator_operations.pass hits a hipSYCL sub-buffer constructor bug.
-  make_targets="build-onedpl-sycl_iterator-tests build-onedpl-ranges-tests device_copyable.pass dpl_namespace.pass test_policies.pass lambda_naming.pass host_device_storage.pass"
-elif [[ "${BACKEND}" == dpcpp* ]]; then
+if [[ "${BACKEND}" == dpcpp* ]]; then
   # set targets for dpcpp tests
   make_targets="build-onedpl-general-tests build-onedpl-sycl_iterator-tests build-onedpl-implementation_details-tests build-onedpl-ranges-tests"
   tests_regex="(sycl_iterator_.*)|(device_copyable)|(dpl_namespace)|(test_policies)|(lambda_naming)|(host_device_storage)|(std_ranges_.*)"
@@ -75,13 +70,10 @@ cmake -DCMAKE_CXX_STANDARD="${STD}" -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
 make VERBOSE=1 -j${BUILD_CONCURRENCY} ${make_targets} |& tee build.log
 if [[ "${CXX_COMPILER}" == "acpp" ]]; then
   acpp-info
-  # Skip running tests with AdaptiveCpp for now due to segmentation faults likely caused by sycl::buffer issues.
-  python "${GITHUB_WORKSPACE}/.github/scripts/job_summary.py" --build-log build.log \
-                                                              --output-file summary.md --compiler "${CXX_COMPILER}"
 else
   export ONEAPI_DEVICE_SELECTOR=*:${DEVICE_TYPE}
-  ctest --timeout "${TEST_TIMEOUT}" --output-on-failure ${ctest_flags} |& tee ctest.log
-
-  python "${GITHUB_WORKSPACE}/.github/scripts/job_summary.py" --build-log build.log --ctest-log ctest.log \
-                                                              --output-file summary.md --compiler "${CXX_COMPILER}"
 fi
+ctest --timeout "${TEST_TIMEOUT}" --output-on-failure ${ctest_flags} |& tee ctest.log
+
+python "${GITHUB_WORKSPACE}/.github/scripts/job_summary.py" --build-log build.log --ctest-log ctest.log \
+                                                            --output-file summary.md --compiler "${CXX_COMPILER}"

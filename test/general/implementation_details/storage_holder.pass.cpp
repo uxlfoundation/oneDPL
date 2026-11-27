@@ -330,6 +330,7 @@ struct StorageHolderTest
             verify_copy_result(n, holder);
         }
 
+#if !TEST_ACPP_ZERO_SIZE_MEMCPY_BROKEN
         // Edge case: copy zero elements
         {
             Test::inspectable_holder<0, int> holder{q};
@@ -339,6 +340,7 @@ struct StorageHolderTest
             holder.__copy_result<0>(&sentinel, 0);
             EXPECT_EQ(42, sentinel, "__copy_result: destination must not be modified by zero-size copy");
         }
+#endif
     }
 
     void test_extract()
