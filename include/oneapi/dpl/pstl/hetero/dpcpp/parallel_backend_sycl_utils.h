@@ -117,17 +117,18 @@ __min_sub_group_size(const sycl::device& __device)
     return __sg_sizes.empty() ? 1 : *std::min_element(__sg_sizes.begin(), __sg_sizes.end());
 }
 
+// Whether the device supports the sub-group size
+inline bool
+__supports_sub_group_size(const sycl::device& __device, std::size_t __target_size)
+{
+    const std::vector<std::size_t> __sg_sizes = __sub_group_sizes(__device);
+    return std::find(__sg_sizes.begin(), __sg_sizes.end(), __target_size) != __sg_sizes.end();
+}
+
 inline std::uint32_t
 __max_compute_units(const sycl::queue& __q)
 {
     return __q.get_device().template get_info<sycl::info::device::max_compute_units>();
-}
-
-inline bool
-__supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
-{
-    const std::vector<std::size_t> __subgroup_sizes = __sub_group_sizes(__q.get_device());
-    return std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), __target_size) != __subgroup_sizes.end();
 }
 
 inline bool

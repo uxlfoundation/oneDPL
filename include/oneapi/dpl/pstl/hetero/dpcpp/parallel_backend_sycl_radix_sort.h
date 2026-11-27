@@ -821,9 +821,7 @@ __parallel_radix_sort(oneapi::dpl::__internal::__device_backend_tag, _ExecutionP
     // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
     // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
     const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local, (std::size_t)4096);
-    const auto __subgroup_sizes = __q_local.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    const bool __dev_has_sg16 = std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(),
-                                          static_cast<std::size_t>(16)) != __subgroup_sizes.end();
+    const bool __dev_has_sg16 = oneapi::dpl::__internal::__supports_sub_group_size(__q_local.get_device(), 16);
 
     using _RadixSortKernel = oneapi::dpl::__internal::__policy_kernel_name<_ExecutionPolicy>;
     using _ValueT = oneapi::dpl::__internal::__value_t<_Range>;
