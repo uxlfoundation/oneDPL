@@ -8,6 +8,79 @@ The Intel® oneAPI DPC++ Library (oneDPL) accompanies the Intel® oneAPI DPC++/C
 and provides high-productivity APIs aimed to minimize programming efforts of C++ developers
 creating efficient heterogeneous applications.
 
+New in 2022.15.0
+================
+New Features
+------------
+- Added experimental ``batched_stable_sort`` and ``batched_stable_sort_by_key`` algorithms in the
+  ``oneapi::dpl::experimental::kt::gpu`` namespace, which independently sort each of a batch of equally sized,
+  contiguous segments in a single call. Work-group resident merge sort, work-group resident radix sort, and multi
+  work-group radix sort configurations are provided and selected at compile time.
+- Improved performance of ``remove``, ``remove_if``, and ``unique`` algorithms when used with device policies.
+- Improved performance of ``shift_left`` and ``shift_right`` algorithms with small shift values
+  when used with device policies.
+- Improved performance of over 50 algorithms
+  (including ``for_each``, ``transform``, ``copy``, ``replace``, ``find``, ``equal``, and ``any_of``)
+  when using the OpenMP backend with ``par`` and ``par_unseq`` execution policies.
+  This improvement applies to algorithms called outside of an existing OpenMP parallel region.
+- Improved performance of ``merge``, ``inplace_merge``, ``sort``, ``stable_sort``, ``sort_by_key``,
+  ``stable_sort_by_key``, ``partial_sort``, and ``partial_sort_copy`` algorithms
+  when using the oneTBB backend with ``par`` and ``par_unseq`` execution policies.
+  The improvement is more pronounced on CPUs with a higher core count.
+- Added support for Intel® GPU D270 to the experimental ``kt::gpu::radix_sort`` and
+  ``kt::gpu::radix_sort_by_key`` algorithms.
+- Added ``oneapi::dpl::experimental::reduce_by_segment`` overloads with segment boundaries defined
+  by an array of indices. Added ``ONEDPL_HAS_SEGMENTED_ALGORITHMS`` feature test macro
+  to check availability of these overloads.
+- Improved performance of ``find_first_of`` with ``unseq`` and ``par_unseq`` policies
+  when the second input sequence has ~1M elements or more.
+
+Fixed Issues
+------------
+- Fixed incorrect results in the ``histogram`` algorithm with evenly divided bins when the bin bound type
+  differs from the input element type, when intermediate bin computations overflow for large bound ranges,
+  or when floating-point precision issues map an input element just below the upper bound past the last bin.
+- Fixed ``adjacent_difference`` converting the result of the default ``operator-`` to the input value type
+  before writing it to the output sequence.
+- Fixed ``search_n`` converting the searched value to the input value type before comparison.
+- Fixed incorrect results of ``find_first_of`` algorithm, including its range-based variant,
+  with ``unseq`` and ``par_unseq`` policies: the returned match might be not the leftmost one.
+- Removed requirements on the value type not mandated by the C++ standard from ``min_element``,
+  ``max_element``, and ``minmax_element`` algorithms, including their range-based variants,
+  and from range-based ``min``, ``max``, and ``minmax`` algorithms with ``unseq`` and ``par_unseq`` policies.
+- Fixed a compilation error in algorithms with device policies when the element type of an input sequence
+  has an overloaded or deleted unary ``operator&``.
+- Fixed a synchronization issue that could cause incorrect results in ``histogram`` and
+  algorithms such as ``find``, ``any_of``, ``equal``, ``is_sorted`` and ``includes`` with device policies.
+
+Known Issues and Limitations
+----------------------------
+New in This Release
+^^^^^^^^^^^^^^^^^^^
+- ``experimental::reduce_by_segment`` executes serially with all standard-aligned execution policies.
+- When called with device policies, ``histogram`` and algorithms with early-exit semantics
+  such as ``find``, ``any_of``, ``equal``, ``is_sorted`` and ``includes`` require ``sycl::memory_scope::device`` capability,
+  which can be queried through ``sycl::info::device::atomic_memory_scope_capabilities``.
+
+Existing Issues
+^^^^^^^^^^^^^^^
+See oneDPL Guide for other `restrictions and known limitations`_.
+
+- ``histogram`` algorithm requires the output value type to be an integral type no larger than four bytes
+  when used with a device policy on hardware that does not support 64-bit atomic operations.
+- For ``transform_exclusive_scan`` and ``exclusive_scan`` to run in-place (that is, with the same data
+  used for both input and destination) and with an execution policy of ``unseq`` or ``par_unseq``,
+  it is required that the provided input and destination iterators are equality comparable.
+  Furthermore, the equality comparison of the input and destination iterator must evaluate to true.
+  If these conditions are not met, the result of these algorithm calls is undefined.
+- ``kt::gpu::radix_sort_by_key`` function may produce incorrect results on RHEL 10 or earlier when run on
+  Intel® Data Center GPU Max Series with SYCL buffer passed as input data and no optimization flags passed 
+  to the device compiler.
+- ``set_difference``, ``set_intersection``, ``set_symmetric_difference``, ``set_union`` algorithms
+  in ``oneapi::dpl::ranges`` require more than their ``requires`` clauses specify: with both host
+  and device policies they require an output value type constructible from input reference types and
+  a non-proxy output iterator.
+
 New in 2022.14.0
 ================
 New Features
