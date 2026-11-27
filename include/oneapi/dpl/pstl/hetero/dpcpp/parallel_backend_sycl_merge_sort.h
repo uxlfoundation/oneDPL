@@ -740,7 +740,7 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp, __mer
     // Assume GPUs handle multiple sub-groups per CU,
     // while the maximum work-group size takes hardware multithreading (occupancy) into account
     const std::size_t __max_hw_wg_size = __is_cpu ? __max_sg_size : __max_wg_size;
-    const auto __max_cu = __device.template get_info<sycl::info::device::max_compute_units>();
+    const auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__device);
     // TODO: adjust the saturation point for Intel GPUs:
     // CU number is incorrect for Intel GPUs since it returns the number of VE instead of XC,
     // and max work-group size utilizes only a half of the XC resources for Data Center GPUs

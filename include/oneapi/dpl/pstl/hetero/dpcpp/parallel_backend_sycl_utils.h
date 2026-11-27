@@ -126,9 +126,15 @@ __supports_sub_group_size(const sycl::device& __device, std::size_t __target_siz
 }
 
 inline std::uint32_t
+__max_compute_units(const sycl::device& __device)
+{
+    return __device.template get_info<sycl::info::device::max_compute_units>();
+}
+
+inline std::uint32_t
 __max_compute_units(const sycl::queue& __q)
 {
-    return __q.get_device().template get_info<sycl::info::device::max_compute_units>();
+    return __max_compute_units(__q.get_device());
 }
 
 inline bool

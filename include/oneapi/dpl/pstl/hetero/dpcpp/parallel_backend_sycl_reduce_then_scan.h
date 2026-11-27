@@ -2518,12 +2518,13 @@ __parallel_transform_reduce_then_scan_impl(
     // the work-group size appropriately. The actual sub-group size used by each kernel is determined
     // on the device (see __get_reduce_then_scan_actual_sub_group_size): a compile-time constant on the SPIR-V path and
     // the actual per-sub-group get_local_range() otherwise.
+    const sycl::device __device = __q.get_device();
     const std::uint8_t __min_sub_group_size =
-        static_cast<std::uint8_t>(oneapi::dpl::__internal::__min_sub_group_size(__q.get_device()));
+        static_cast<std::uint8_t>(oneapi::dpl::__internal::__min_sub_group_size(__device));
     const std::uint8_t __max_sub_group_size =
-        static_cast<std::uint8_t>(oneapi::dpl::__internal::__max_sub_group_size(__q.get_device()));
+        static_cast<std::uint8_t>(oneapi::dpl::__internal::__max_sub_group_size(__device));
     // Empirically determined maximum. May be less for non-full blocks.
-    const bool __target_is_gpu = __q.get_device().is_gpu();
+    const bool __target_is_gpu = __device.is_gpu();
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
     const std::uint32_t __wg_size_cap =
@@ -2540,8 +2541,7 @@ __parallel_transform_reduce_then_scan_impl(
     const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
 
     // use work groups to match the number of compute units
-    const std::uint32_t __max_compute_units =
-        __q.get_device().template get_info<sycl::info::device::max_compute_units>();
+    const std::uint32_t __max_compute_units = oneapi::dpl::__internal::__max_compute_units(__device);
 
     std::size_t __inputs_remaining = __n;
     if constexpr (__is_unique_pattern_v)
