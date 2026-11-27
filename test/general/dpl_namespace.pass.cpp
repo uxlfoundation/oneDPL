@@ -44,17 +44,23 @@ int main()
     auto counting_first = dpl::counting_iterator<T>(0);
     auto zip_first = dpl::make_zip_iterator(counting_first, key_first);
 
+#if TEST_USE_PREDEFINED_POLICIES
+    const auto& policy_arg = dpl::execution::dpcpp_default;
+#else
+    auto policy_arg = TestUtils::get_test_queue();
+#endif
+
     // key_buf = {0,0,...0,1,1,...,1}
-    dpl::for_each(TestUtils::make_device_policy<ForEach>(dpl::execution::dpcpp_default),
+    dpl::for_each(TestUtils::make_device_policy<ForEach>(policy_arg),
 		zip_first, zip_first + n,
         [](std::tuple<T, T> x){
             std::get<1>(x) = (2 * std::get<0>(x)) / n;
         });
     // val_buf = {0,1,2,...,n-1}
-    dpl::transform(TestUtils::make_device_policy<Transform>(dpl::execution::dpcpp_default),
+    dpl::transform(TestUtils::make_device_policy<Transform>(policy_arg),
 		counting_first, counting_first + n, val_first, dpl::identity());
     auto result = dpl::inclusive_scan_by_segment(
-		TestUtils::make_device_policy<Scan>(dpl::execution::dpcpp_default),
+		TestUtils::make_device_policy<Scan>(policy_arg),
 		key_first, key_first + n, val_first, res_first);
 
     EXPECT_EQ(k, result - res_first, "size of keys output is not valid");

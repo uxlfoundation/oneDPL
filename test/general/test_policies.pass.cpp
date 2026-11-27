@@ -76,7 +76,9 @@ main()
 
     assert_is_execution_policy<device_policy<Kernel<0>>>();
 
+#if TEST_USE_PREDEFINED_POLICIES
     test_policy_instance(dpcpp_default);
+#endif
 
     // make_device_policy
     test_policy_instance(TestUtils::make_device_policy<Kernel<11>>(q));
@@ -89,36 +91,46 @@ main()
 #endif
     test_policy_instance(TestUtils::make_device_policy<Kernel<13>>(sycl::device{TestUtils::default_selector}));
     test_policy_instance(TestUtils::make_device_policy<Kernel<14>>(sycl::queue{TestUtils::default_selector, sycl::property::queue::in_order()}));
+#if TEST_USE_PREDEFINED_POLICIES
     test_policy_instance(TestUtils::make_device_policy<Kernel<15>>(dpcpp_default));
     // Special case: required to call make_device_policy directly from oneapi::dpl::execution namespace
     test_policy_instance(oneapi::dpl::execution::make_device_policy<Kernel<16>>());
+#endif
 
     // device_policy
     EXPECT_TRUE(device_policy<Kernel<1>>(q).queue() == q, "wrong result for queue()");
     test_policy_instance(device_policy<Kernel<21>>(q));
     test_policy_instance(device_policy<Kernel<22>>(sycl::device{TestUtils::default_selector}));
+#if TEST_USE_PREDEFINED_POLICIES
     test_policy_instance(device_policy<Kernel<23>>(dpcpp_default));
     test_policy_instance(device_policy<Kernel<24>>(sycl::queue(dpcpp_default))); // conversion to sycl::queue
     test_policy_instance(device_policy<>{});
+#endif
     static_assert(std::is_same_v<device_policy<Kernel<25>>::kernel_name, Kernel<25>>, "wrong result for kernel_name (device_policy)");
 
 #if ONEDPL_FPGA_DEVICE
     assert_is_execution_policy<fpga_policy</*unroll_factor =*/ 1, class Kernel<0>>>();
+#if TEST_USE_PREDEFINED_POLICIES
     test_policy_instance(dpcpp_fpga);
+#endif
 
     // make_fpga_policy
     test_policy_instance(TestUtils::make_fpga_policy</*unroll_factor =*/ 1, Kernel<31>>(sycl::queue{TestUtils::default_selector}));
     test_policy_instance(TestUtils::make_fpga_policy</*unroll_factor =*/ 2, Kernel<32>>(sycl::device{TestUtils::default_selector}));
+#if TEST_USE_PREDEFINED_POLICIES
     test_policy_instance(TestUtils::make_fpga_policy</*unroll_factor =*/ 4, Kernel<33>>(dpcpp_fpga));
     // Special case: required to call make_fpga_policy directly from oneapi::dpl::execution namespace
     test_policy_instance(oneapi::dpl::execution::make_fpga_policy</*unroll_factor =*/ 8, Kernel<34>>());
+#endif
     test_policy_instance(TestUtils::make_fpga_policy</*unroll_factor =*/ 16, Kernel<35>>(sycl::queue{TestUtils::default_selector}));
 
     // fpga_policy
     test_policy_instance(fpga_policy</*unroll_factor =*/ 1, Kernel<41>>(sycl::queue{TestUtils::default_selector}));
     test_policy_instance(fpga_policy</*unroll_factor =*/ 2, Kernel<42>>(sycl::device{TestUtils::default_selector}));
+#if TEST_USE_PREDEFINED_POLICIES
     test_policy_instance(fpga_policy</*unroll_factor =*/ 4, Kernel<43>>(dpcpp_fpga));
     test_policy_instance(fpga_policy</*unroll_factor =*/ 8, Kernel<44>>{});
+#endif
     static_assert(std::is_same_v<fpga_policy</*unroll_factor =*/ 8, Kernel<25>>::kernel_name, Kernel<25>>, "wrong result for kernel_name (fpga_policy)");
     static_assert(fpga_policy</*unroll_factor =*/ 16, Kernel<45>>::unroll_factor == 16, "wrong unroll_factor");
 #endif // ONEDPL_FPGA_DEVICE
