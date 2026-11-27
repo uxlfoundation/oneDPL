@@ -1159,6 +1159,19 @@ get_pattern_for_test_sizes()
     return sizes;
 }
 
+// Test sizes for find / any_of style algorithms. For device policies, find_test_device_n is added.
+inline std::vector<std::size_t>
+get_find_test_sizes()
+{
+    std::vector<std::size_t> sizes;
+    for (std::size_t n = 0; n <= find_test_max_host_n; n = n <= 16 ? n + 1 : static_cast<std::size_t>(3.1415 * n))
+        sizes.push_back(n);
+#if TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
+    sizes.push_back(find_test_device_n);
+#endif
+    return sizes;
+}
+
 template <typename T>
 struct IsMultipleOf
 {

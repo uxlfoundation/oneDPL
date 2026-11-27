@@ -97,11 +97,11 @@ template <typename T>
 void
 test_is_sorted_by_type()
 {
-    const ::std::size_t max_size = 1000000;
+    const std::size_t max_size = 1000000;
 
-    for (::std::size_t n1 = 1; n1 <= max_size; n1 = n1 <= 16 ? n1 + 1 : ::std::size_t(3.1415 * n1))
+    for (std::size_t n1 = 1; n1 <= max_size; n1 = n1 <= 16 ? n1 + 1 : static_cast<std::size_t>(3.1415 * n1))
     {
-        Sequence<T> in(n1, [](::std::size_t v) -> T { return T(v); }); //fill 0..n
+        Sequence<T> in(n1, [](std::size_t v) -> T { return static_cast<T>(v); }); // fill 0..n
 #ifdef _PSTL_TEST_IS_SORTED
         invoke_on_all_policies<0>()(test_is_sorted<T>(), in.begin(), in.end());
         invoke_on_all_policies<1>()(test_is_sorted_predicate<T>(), in.begin(), in.end());
@@ -119,6 +119,19 @@ test_is_sorted_by_type()
         invoke_on_all_policies<7>()(test_is_sorted_until_predicate<T>(), in.cbegin(), in.cend());
 #    endif
 #endif
+
+        // A single descent at the last element
+        if (n1 > 2)
+        {
+            in[n1 - 1] = static_cast<T>(0);
+#ifdef _PSTL_TEST_IS_SORTED
+            invoke_on_all_policies<40>()(test_is_sorted<T>(), in.begin(), in.end());
+#endif
+#ifdef _PSTL_TEST_IS_SORTED_UNTIL
+            invoke_on_all_policies<41>()(test_is_sorted_until<T>(), in.begin(), in.end());
+#endif
+            in[n1 - 1] = static_cast<T>(n1 - 1);
+        }
 
         in[in.size() / 2] = -1;
 #ifdef _PSTL_TEST_IS_SORTED
