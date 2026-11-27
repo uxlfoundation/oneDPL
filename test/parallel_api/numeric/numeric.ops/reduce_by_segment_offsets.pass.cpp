@@ -369,6 +369,26 @@ test_fixed_length_segments()
     }
 }
 
+// More segments than the device implementation reduces with one work-group, and long segments among them: the chunk
+// counts of the long segments are scanned after the short ones. AdaptiveCpp for CUDA gave wrong results for such
+// inputs, see https://github.com/uxlfoundation/oneDPL/issues/2924
+template <std::size_t CallNumber>
+void
+test_many_long_segments()
+{
+    std::vector<int> offsets{0};
+    for (std::size_t i = 0; i < 2100; ++i)
+        offsets.push_back(offsets.back() + (i % 400 == 7 ? 2000 : 100));
+
+    const int num_segments = offsets.size() - 1;
+    const std::size_t n = offsets.back();
+
+    Sequence<int> in(n, [](std::size_t i) { return int(i % 101) - 50; });
+    Sequence<int> out(num_segments, [](std::size_t) { return -1; });
+    invoke_on_all_policies<CallNumber>()(test_reduce_by_segment_offsets(), in.begin(), in.end(), out.begin(), out.end(),
+                                         offsets.begin(), num_segments, 5, std::plus<int>{}, -1);
+}
+
 template <std::size_t CallNumber>
 void
 test_unordered()
@@ -627,7 +647,7 @@ test_small_types()
                                      out.begin(), out.end(), offsets.begin(), m, std::uint8_t{5},
                                      std::bit_xor<std::uint8_t>{}, std::uint8_t{0xFF});
 #endif // TEST_DPCPP_BACKEND_PRESENT && !ONEDPL_FPGA_DEVICE
-}
+}                                                                                       
 
 int
 main()
@@ -709,6 +729,7 @@ main()
     test_input_bounds<43>();
     test_edge_segment_distributions<44>();
     test_fixed_length_segments<45>();
+    test_many_long_segments<46>();
     test_counting_input();
     test_narrow_counting_input();
     test_small_types();
