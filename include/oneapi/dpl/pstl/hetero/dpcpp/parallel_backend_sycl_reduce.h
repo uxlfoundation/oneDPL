@@ -321,8 +321,9 @@ struct __parallel_transform_reduce_impl
 
 #if _ONEDPL_COMPILE_KERNEL
         auto __kernel = __internal::__kernel_compiler<_ReduceKernel>::__compile(__q);
-        _Size __adjusted_work_group_size = oneapi::dpl::__internal::__kernel_work_group_size(__q, __kernel);
-        __work_group_size = std::min(__work_group_size, __adjusted_work_group_size);
+        // The kernel may support fewer work-items per work-group than chosen by the caller
+        __work_group_size = static_cast<_Size>(oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(static_cast<std::size_t>(__work_group_size)), __kernel));
 #endif
 
         const _Size __size_per_work_group =
@@ -446,25 +447,24 @@ __parallel_transform_reduce_async(oneapi::dpl::__internal::__device_backend_tag,
 
     // Empirically found tuning parameters for typical devices.
     constexpr _Size __max_iters_per_work_item = 32;
-    constexpr std::size_t __max_work_group_size = 256;
-    static_assert(__max_work_group_size * __max_iters_per_work_item <= std::numeric_limits<std::uint16_t>::max(),
+    constexpr std::size_t __wg_size_reduce_cap = 256;
+    static_assert(__wg_size_reduce_cap * __max_iters_per_work_item <= std::numeric_limits<std::uint16_t>::max(),
                   "Out of 16-bit addressing range");
     constexpr std::uint8_t __vector_size = 4;
     constexpr std::uint32_t __oversubscription = 2;
 
-    // Get the work group size adjusted to the local memory limit.
-    // Pessimistically double the memory requirement to take into account memory used by compiled kernel.
-    // TODO: find a way to generalize getting of reliable work-group size.
-    std::size_t __work_group_size =
-        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q_local, static_cast<std::size_t>(sizeof(_Tp) * 2));
-
-    // Limit work-group size to __max_work_group_size for performance on GPUs. Empirically tested.
-    __work_group_size = std::min(__work_group_size, __max_work_group_size);
+    // Get the work group size limited to __wg_size_reduce_cap for performance on GPUs (empirically tested) and adjusted
+    // to the local memory limit. Pessimistically double the memory requirement to take into account memory used by
+    // compiled kernel.
+    const std::size_t __work_group_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q_local, oneapi::dpl::__internal::__wg_size_limits(std::min(
+                       __wg_size_reduce_cap,
+                       oneapi::dpl::__internal::__local_mem_work_group_size(__q_local.get_device(), sizeof(_Tp) * 2))));
     const _Size __max_elements_per_wg = __work_group_size * __max_iters_per_work_item;
 
     // Use single work group implementation if less than __max_iters_per_work_item elements per work-group.
-    // We can use 16-bit addressing since we have at most __max_work_group_size * __max_iters_per_work_item elements.
-    // Update this in case of changing __max_work_group_size or __max_iters_per_work_item.
+    // We can use 16-bit addressing since we have at most __wg_size_reduce_cap * __max_iters_per_work_item elements.
+    // Update this in case of changing __wg_size_reduce_cap or __max_iters_per_work_item.
     if (__n <= __max_elements_per_wg)
     {
         const auto __n_short = static_cast<std::uint16_t>(__n);
@@ -478,9 +478,9 @@ __parallel_transform_reduce_async(oneapi::dpl::__internal::__device_backend_tag,
     // Use two-step tree reduction.
     // First step reduces __work_group_size * __iters_per_work_item_device_kernel elements.
     // Second step reduces __work_group_size * __iters_per_work_item_work_group_kernel elements.
-    // We can use 32-bit addressing since we have at most (__max_work_group_size * __max_iters_per_work_item) ^ 2
+    // We can use 32-bit addressing since we have at most (__wg_size_reduce_cap * __max_iters_per_work_item) ^ 2
     // elements.
-    // Update this in case of changing __max_work_group_size or __max_iters_per_work_item.
+    // Update this in case of changing __wg_size_reduce_cap or __max_iters_per_work_item.
     if (__n <= __max_elements_per_wg * __max_elements_per_wg)
     {
         const auto __n_short = static_cast<std::uint32_t>(__n);

@@ -341,7 +341,8 @@ struct __merge_sort_global_submitter<_IndexT, __internal::__optional_kernel_name
     std::size_t
     get_max_base_diags_count(const sycl::queue& __q, const _IndexT __chunk, std::size_t __n) const
     {
-        const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
+        const std::size_t __max_wg_size =
+            oneapi::dpl::__internal::__select_work_group_size(__q, oneapi::dpl::__internal::__wg_size_limits());
         return oneapi::dpl::__internal::__dpl_ceiling_div(__n, __chunk * __max_wg_size);
     }
 
@@ -665,6 +666,12 @@ struct __merge_sort_copy_back_submitter<__internal::__optional_kernel_name<_Copy
 template <typename... _Name>
 class __sort_leaf_kernel;
 
+// The name of the leaf sort kernel: named also for a policy with the default name, so that it can be queried
+template <typename _CustomName, typename _Range, typename _Compare>
+using __sort_leaf_kernel_name =
+    oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__sort_leaf_kernel, _CustomName,
+                                                                           std::decay_t<_Range>, _Compare>;
+
 template <typename... _Name>
 class __diagonals_kernel_name_for_merge_sort;
 
@@ -684,8 +691,8 @@ __merge_sort(sycl::queue& __q, _Range&& __rng, _Compare __comp, _LeafSorter& __l
 {
     using _Tp = oneapi::dpl::__internal::__value_t<_Range>;
 
-    using _LeafSortKernel =
-        oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__sort_leaf_kernel<_CustomName>>;
+    using _LeafSortKernel = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+        __sort_leaf_kernel_name<_CustomName, _Range, _Compare>>;
     using _DiagonalsKernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
         __diagonals_kernel_name_for_merge_sort<_CustomName, _IndexT>>;
     using _GlobalSortKernel1 = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
@@ -729,20 +736,30 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp, __mer
     const std::size_t __n = oneapi::dpl::__ranges::__size(__rng);
     sycl::device __device = __q.get_device();
 
-    const std::size_t __max_wg_size = __device.template get_info<sycl::info::device::max_work_group_size>();
+    // The user comparator runs in the kernel and may need many registers
+    constexpr std::size_t __wg_size_merge_sort_leaf_acpp_gpu_cap = 256;
+#if _ONEDPL_COMPILE_KERNEL
+    // The kernel may support fewer work-items per work-group, e.g. by the registers the user comparator needs
+    const sycl::kernel __leaf_kernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_compiler<
+        __sort_leaf_kernel_name<_CustomName, _Range, _Compare>>::__compile(__q);
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q, oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_merge_sort_leaf_acpp_gpu_cap),
+        __leaf_kernel);
+#else
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q, oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_merge_sort_leaf_acpp_gpu_cap));
+#endif
 
     const bool __is_cpu = __device.is_cpu();
-    std::uint32_t __max_sg_size{};
-    if (__is_cpu)
-    {
-        const auto __sg_sizes = __device.template get_info<sycl::info::device::sub_group_sizes>();
-        __max_sg_size = *std::max_element(__sg_sizes.begin(), __sg_sizes.end());
-    }
+    // At least 1 even if the device reports no sub-group sizes
+    const std::uint32_t __max_sg_size = __is_cpu ? static_cast<std::uint32_t>(std::max<std::size_t>(
+                                                       1, oneapi::dpl::__internal::__max_sub_group_size(__device)))
+                                                 : 0;
     // Assume CPUs handle one sub-group (SIMD) per CU;
     // Assume GPUs handle multiple sub-groups per CU,
     // while the maximum work-group size takes hardware multithreading (occupancy) into account
     const std::size_t __max_hw_wg_size = __is_cpu ? __max_sg_size : __max_wg_size;
-    const auto __max_cu = __device.template get_info<sycl::info::device::max_compute_units>();
+    const auto __max_cu = oneapi::dpl::__internal::__max_compute_units(__device);
     // TODO: adjust the saturation point for Intel GPUs:
     // CU number is incorrect for Intel GPUs since it returns the number of VE instead of XC,
     // and max work-group size utilizes only a half of the XC resources for Data Center GPUs
@@ -759,8 +776,7 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp, __mer
 
     // Pessimistically double the memory requirement to take into account memory used by compiled kernel.
     // TODO: investigate if the adjustment can be less conservative
-    const std::size_t __max_slm_items =
-        __device.template get_info<sycl::info::device::local_mem_size>() / (sizeof(_Tp) * 2);
+    const std::size_t __max_slm_items = oneapi::dpl::__internal::__local_mem_size(__device) / (sizeof(_Tp) * 2);
 
     const std::size_t __max_slm_wg_size = __max_slm_items / _Leaf::storage_size(__data_per_workitem, 1);
     // __n is taken as is because of the bit floor and processing at least 2 items per work-item

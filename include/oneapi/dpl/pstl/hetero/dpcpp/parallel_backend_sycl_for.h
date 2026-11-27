@@ -172,7 +172,9 @@ template <typename... _Name>
 struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name...>>
 {
     // Limit the work-group size to 512 which has empirically yielded the best results across different architectures.
-    static constexpr std::uint16_t __work_group_size_limit = 512;
+    static constexpr std::size_t __wg_size_parallel_for_cap = 512;
+    // The user functor runs in the kernel and may need many registers
+    static constexpr std::size_t __wg_size_parallel_for_acpp_gpu_cap = 256;
 
     template <typename _Fp>
     static std::size_t
@@ -274,7 +276,9 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     __minimal_useful_size(const sycl::queue& __q, std::size_t __iters_per_work_item)
     {
         const std::uint16_t __work_group_size =
-            oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
+            static_cast<std::uint16_t>(oneapi::dpl::__internal::__select_work_group_size(
+                __q, oneapi::dpl::__internal::__wg_size_limits(__wg_size_parallel_for_cap)
+                         .__set_acpp_gpu_cap(__wg_size_parallel_for_acpp_gpu_cap)));
         const std::uint32_t __max_cu = oneapi::dpl::__internal::__max_compute_units(__q);
         return __work_group_size * __iters_per_work_item * __max_cu;
     }
@@ -285,7 +289,9 @@ struct __parallel_for_large_submitter<__internal::__optional_kernel_name<_Name..
     {
         using __params_t = __pfor_params<_Ranges...>;
         const std::uint16_t __work_group_size =
-            oneapi::dpl::__internal::__max_work_group_size(__q, __work_group_size_limit);
+            static_cast<std::uint16_t>(oneapi::dpl::__internal::__select_work_group_size(
+                __q, oneapi::dpl::__internal::__wg_size_limits(__wg_size_parallel_for_cap)
+                         .__set_acpp_gpu_cap(__wg_size_parallel_for_acpp_gpu_cap)));
         _PRINT_INFO_IN_DEBUG_MODE(__q);
         auto __event = __q.submit([__rngs..., __brick, __work_group_size, __count, &__e](sycl::handler& __cgh) {
             //get an access to data under SYCL buffer:

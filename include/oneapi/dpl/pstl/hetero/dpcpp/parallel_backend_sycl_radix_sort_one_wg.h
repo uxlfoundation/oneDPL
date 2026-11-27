@@ -142,7 +142,7 @@ struct __subgroup_radix_sort
         // Pessimistically only use half of the memory to take into account
         // a SYCL group algorithm might use a portion of SLM
         const ::std::size_t __max_slm_size =
-            __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+            oneapi::dpl::__internal::__local_mem_size<std::ratio<1, 2>>(__q.get_device());
 
         const auto __n_uniform = 1 << (::std::uint32_t(log2(__n - 1)) + 1);
         const auto __req_slm_size_val = sizeof(_T) * __n_uniform;

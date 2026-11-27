@@ -227,7 +227,37 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
                                        _UnaryOperation __unary_op, _InitType __init, _BinaryOperation __binary_op,
                                        _Inclusive)
 {
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q);
+    // The user functors run in the kernel and may need many registers
+    constexpr std::size_t __wg_size_scan_single_group_acpp_gpu_cap = 256;
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q, oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_scan_single_group_acpp_gpu_cap));
+
+    // Work-group size chosen at run time
+    auto __dynamic_group_scan_f = [&](std::size_t __wg_size) {
+        // A policy with its own name keeps the name of the kernel; an unnamed kernel of a policy with the default name
+        // gets a name made of the types of the kernel, as __kernel_name_generator does, since a kernel without a name
+        // cannot be queried
+        using _DynamicGroupScanKernelName =
+#if __SYCL_UNNAMED_LAMBDA__
+            std::conditional_t<
+                __internal::_HasDefaultName<_CustomName>::value,
+                __internal::__kernel_name_generator<__scan_single_wg_dynamic_kernel, _CustomName, _BinaryOperation,
+                                                    _InRng, _OutRng, _UnaryOperation, _InitType, _Inclusive>,
+                __scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>>;
+#else
+            __scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>;
+#endif
+#if _ONEDPL_COMPILE_KERNEL
+        // The kernel may support fewer work-items per work-group, e.g. by the registers the user functors need
+        const sycl::kernel __kernel = __internal::__kernel_compiler<_DynamicGroupScanKernelName>::__compile(__q);
+        __wg_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__wg_size), __kernel);
+#endif
+        return __parallel_transform_scan_dynamic_single_group_submitter<
+            _Inclusive::value, __internal::__optional_kernel_name<_DynamicGroupScanKernelName>>()(
+            __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op,
+            __wg_size);
+    };
 
     // Specialization for devices that have a max work-group size of 1024
     constexpr ::std::uint16_t __targeted_wg_size = 1024;
@@ -239,15 +269,33 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
             constexpr ::std::uint16_t __wg_size = ::std::min(__size, __targeted_wg_size);
             constexpr ::std::uint16_t __num_elems_per_item =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__size, __wg_size);
-
+            using _WGSize = std::integral_constant<std::uint16_t, __wg_size>;
+            using _NumElemsPerItem = std::integral_constant<std::uint16_t, __num_elems_per_item>;
+            // As above for the name; the work-group size and the number of elements per item distinguish the kernels
+            using _GroupScanKernelName =
+#if __SYCL_UNNAMED_LAMBDA__
+                std::conditional_t<
+                    __internal::_HasDefaultName<_CustomName>::value,
+                    __internal::__kernel_name_generator<__scan_single_wg_kernel, _CustomName, _WGSize, _NumElemsPerItem,
+                                                        _BinaryOperation, _Inclusive, _InRng, _OutRng, _UnaryOperation,
+                                                        _InitType>,
+                    __scan_single_wg_kernel<_WGSize, _NumElemsPerItem, _BinaryOperation, _Inclusive, _CustomName>>;
+#else
+                __scan_single_wg_kernel<_WGSize, _NumElemsPerItem, _BinaryOperation, _Inclusive, _CustomName>;
+#endif
+#if _ONEDPL_COMPILE_KERNEL
+            // The kernel may support fewer work-items per work-group than its fixed size, e.g. by the registers the
+            // user functors need: then take the work-group size chosen at run time
+            const sycl::kernel __kernel = __internal::__kernel_compiler<_GroupScanKernelName>::__compile(__q);
+            const std::size_t __kernel_wg_size = oneapi::dpl::__internal::__kernel_work_group_size(__q, __kernel);
+            if (__kernel_wg_size < __wg_size)
+                return __dynamic_group_scan_f(__kernel_wg_size);
+#endif
             return __parallel_transform_scan_static_single_group_submitter<
                 _Inclusive::value, __num_elems_per_item, __wg_size,
-                oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                    __scan_single_wg_kernel<std::integral_constant<std::uint16_t, __wg_size>,
-                                            std::integral_constant<std::uint16_t, __num_elems_per_item>,
-                                            _BinaryOperation, _Inclusive, _CustomName>>>()(
-                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
-                __unary_op);
+                __internal::__optional_kernel_name<_GroupScanKernelName>>()(__q, std::forward<_InRng>(__in_rng),
+                                                                            std::forward<_OutRng>(__out_rng), __n,
+                                                                            __init, __binary_op, __unary_op);
         };
         if (__n <= 16)
             return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16>{});
@@ -274,12 +322,7 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
     }
     else
     {
-        using _DynamicGroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __par_backend_hetero::__scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>>;
-
-        return __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
-            __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op,
-            __max_wg_size);
+        return __dynamic_group_scan_f(__max_wg_size);
     }
 }
 
@@ -289,7 +332,7 @@ __group_scan_fits_in_slm(const sycl::queue& __q, std::size_t __n, std::size_t __
                          std::size_t __single_group_upper_limit)
 {
     // Pessimistically only use half of the memory to take into account memory used by compiled kernel
-    const std::size_t __max_slm_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+    const std::size_t __max_slm_size = oneapi::dpl::__internal::__local_mem_size<std::ratio<1, 2>>(__q.get_device());
     const auto __req_slm_size = sizeof(_Type) * __n_uniform;
 
     return (__n <= __single_group_upper_limit && __max_slm_size >= __req_slm_size);
@@ -377,7 +420,7 @@ struct __parallel_filter_single_group_base
     __enough_local_memory(sycl::queue __q, _Size __n, std::size_t __element_size = 0)
     {
         // Pessimistically expect only half of local memory to account for possible memory use by the compiled code
-        std::size_t __available = __q.get_device().template get_info<sycl::info::device::local_mem_size>() / 2;
+        const std::size_t __available = oneapi::dpl::__internal::__local_mem_size<std::ratio<1, 2>>(__q.get_device());
         return __available >= __local_memory_needed<__is_in_place>(__n, __element_size).first * sizeof(std::uint16_t);
     }
 
@@ -418,6 +461,12 @@ struct __parallel_filter_single_group_base
     __execute(sycl::queue& __q, _Size __n, std::size_t __max_wg_size, std::size_t __element_size,
               _KernelBody&& __kernel_body, _Ranges&&... __rngs)
     {
+#if _ONEDPL_COMPILE_KERNEL
+        // The kernel may support fewer work-items per work-group, e.g. by the registers the user functors need
+        auto __kernel = __internal::__kernel_compiler<_KernelName...>::__compile(__q);
+        __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__max_wg_size), __kernel);
+#endif
         assert(__max_wg_size <= std::numeric_limits<std::uint16_t>::max());
 
         __result_storage<_Size> __result{__q, _NResults};
@@ -432,8 +481,14 @@ struct __parallel_filter_single_group_base
             auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
             const auto __wg_size = static_cast<std::uint16_t>(std::min<std::size_t>(__n_uniform, __max_wg_size));
 
-            __hdl.parallel_for<_KernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
-                [=](sycl::nd_item<1> __self_item) {
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
+#endif
+            __hdl.parallel_for<_KernelName...>(
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                __kernel,
+#endif
+                sycl::nd_range<1>(__wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                     std::uint16_t* __lm_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
                     _Size* __res_ptr = __res_acc.__data();
                     __kernel_body(__self_item, __wg_size, __n_uniform, __lm_ptr, __res_ptr);
@@ -639,13 +694,18 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     sycl::queue __q_local = __exec.queue();
 
     constexpr std::size_t __max_elem_per_item = 2;
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+    // The user predicate runs in the kernel and may need many registers
+    constexpr std::size_t __wg_size_filter_single_group_acpp_gpu_cap = 256;
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q_local,
+        oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_filter_single_group_acpp_gpu_cap));
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory(__q_local, __n))
     {
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __scan_copy_single_wg_kernel<_CustomName>>;
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+                __scan_copy_single_wg_kernel, _CustomName, _Range1, _Range2, _BinaryPredicate>>;
         __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, __n_out,
             oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred}, _Assign{}, __max_wg_size);
@@ -731,15 +791,20 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     sycl::queue __q_local = __exec.queue();
 
     constexpr std::size_t __max_elem_per_item = 2;
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+    // The user predicate runs in the kernel and may need many registers
+    constexpr std::size_t __wg_size_filter_single_group_acpp_gpu_cap = 256;
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q_local,
+        oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_filter_single_group_acpp_gpu_cap));
 
     // Note: earlier the data size for the single group kernel was capped by 2048
     // The change might impact platforms with __max_wg_size > 1024
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory(__q_local, __n))
     {
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __scan_copy_single_wg_kernel<_CustomName>>;
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+                __scan_copy_single_wg_kernel, _CustomName, _InRng, _OutRng, _Pred, _Assign>>;
         __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __n_out,
             oneapi::dpl::__internal::__pred_at_index{__pred}, __assign, __max_wg_size);
@@ -771,14 +836,19 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
     oneapi::dpl::__internal::__not_pred<_Pred> __keep_pred{__pred};
 
     constexpr std::size_t __max_elem_per_item = 5;
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+    // The user predicate runs in the kernel and may need many registers
+    constexpr std::size_t __wg_size_filter_single_group_acpp_gpu_cap = 256;
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q_local,
+        oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_filter_single_group_acpp_gpu_cap));
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
             __q_local, __n, /*__element_size=*/sizeof(oneapi::dpl::__internal::__value_t<_InRng>)))
     {
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __scan_compact_single_wg_kernel<_CustomName>>;
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__scan_compact_single_wg_kernel,
+                                                                                   _CustomName, _InRng, _Pred>>;
         return __parallel_compact_single_group_functor<_KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), __n, oneapi::dpl::__internal::__pred_at_index{__keep_pred},
             __max_wg_size);
@@ -802,14 +872,19 @@ __parallel_unique(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolic
     sycl::queue __q_local = __exec.queue();
 
     constexpr std::size_t __max_elem_per_item = 5;
-    std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__q_local);
+    // The user predicate runs in the kernel and may need many registers
+    constexpr std::size_t __wg_size_filter_single_group_acpp_gpu_cap = 256;
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q_local,
+        oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_filter_single_group_acpp_gpu_cap));
 
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
             __q_local, __n, /*__element_size=*/sizeof(oneapi::dpl::__internal::__value_t<_InRng>)))
     {
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __scan_compact_single_wg_kernel<_CustomName>>;
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__scan_compact_single_wg_kernel,
+                                                                                   _CustomName, _InRng, _BinaryPred>>;
         return __parallel_compact_single_group_functor<_KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), __n,
             oneapi::dpl::__internal::__unique_at_index<_BinaryPred, true>{__pred}, __max_wg_size);
@@ -874,7 +949,7 @@ __parallel_set_write_a_b_op(_SetTag __set_tag, sycl::queue& __q, _Range1&& __rng
     // Partition into blocks based on SLM size. We want this to fit within L1 cache, and SLM is a related concept and
     // can be queried based upon the device. Performance is not sensitive to exact size in practice.
     const std::size_t __partition_size =
-        __q.get_device().template get_info<sycl::info::device::local_mem_size>() / (__average_input_ele_size * 2);
+        oneapi::dpl::__internal::__local_mem_size<std::ratio<1, 2>>(__q.get_device()) / __average_input_ele_size;
 
     _GenReduceInput __gen_reduce_input{_SetOperation{},
                                        __diagonal_spacing,
@@ -1137,7 +1212,12 @@ struct __parallel_find_or_nd_range_tuner
         // TODO: find a way to generalize getting of reliable work-group size
         // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
         // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-        const std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)4096);
+        constexpr std::size_t __wg_size_find_or_cap = 4096;
+        // The user predicate runs in the kernel and may need many registers
+        constexpr std::size_t __wg_size_find_or_acpp_gpu_cap = 256;
+        const std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__wg_size_find_or_cap)
+                     .__set_acpp_gpu_cap(__wg_size_find_or_acpp_gpu_cap));
         std::size_t __n_groups = 1;
         // If no more than 32 data elements per work item, a single work group will be used
         if (__rng_n > __wgroup_size * 32)
@@ -1203,9 +1283,17 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
 {
     template <typename _BrickTag, typename __FoundStateType, typename _Predicate, typename... _Ranges>
     __FoundStateType
-    operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __wgroup_size,
+    operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __max_wgroup_size,
                const __FoundStateType __init_value, _Predicate __pred, _Ranges&&... __rngs)
     {
+#if _ONEDPL_COMPILE_KERNEL
+        // The kernel may support fewer work-items per work-group, e.g. by the registers the user predicate needs
+        auto __kernel = __internal::__kernel_compiler<KernelName...>::__compile(__q);
+        const std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__max_wgroup_size), __kernel);
+#else
+        const std::size_t __wgroup_size = __max_wgroup_size;
+#endif
         __result_storage<__FoundStateType> __result{__q, 1};
 
         // Calculate the number of elements to be processed by each work-item.
@@ -1216,7 +1304,13 @@ struct __parallel_find_or_impl_one_wg<__or_tag_check, __internal::__optional_ker
             oneapi::dpl::__ranges::__require_access(__cgh, __rngs...);
             auto __result_acc = __get_accessor(sycl::write_only, __result, __cgh, __dpl_sycl::__no_init{});
 
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            __cgh.use_kernel_bundle(__kernel.get_kernel_bundle());
+#endif
             __cgh.parallel_for<KernelName...>(
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                __kernel,
+#endif
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__wgroup_size), sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
                     const std::size_t __local_idx = __item.get_local_id(0);
@@ -1265,8 +1359,17 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
     template <typename _BrickTag, typename _AtomicType, typename _Predicate, typename... _Ranges>
     _AtomicType
     operator()(sycl::queue& __q, _BrickTag __brick_tag, const std::size_t __rng_n, const std::size_t __n_groups,
-               const std::size_t __wgroup_size, const _AtomicType __init_value, _Predicate __pred, _Ranges&&... __rngs)
+               const std::size_t __max_wgroup_size, const _AtomicType __init_value, _Predicate __pred,
+               _Ranges&&... __rngs)
     {
+#if _ONEDPL_COMPILE_KERNEL
+        // The kernel may support fewer work-items per work-group, e.g. by the registers the user predicate needs
+        auto __kernel = __internal::__kernel_compiler<KernelName...>::__compile(__q);
+        const std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__max_wgroup_size), __kernel);
+#else
+        const std::size_t __wgroup_size = __max_wgroup_size;
+#endif
         // We allocate a single element of result storage and two elements of scratch storage. The device scratch
         // storage is used for the atomic operations in the main __parallel_find_or kernel and then copied to the
         // result host memory (if supported) in the writeback kernel for best performance.
@@ -1300,7 +1403,13 @@ struct __parallel_find_or_impl_multiple_wgs<__or_tag_check, __internal::__option
 
             __cgh.depends_on(__event_init);
 
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            __cgh.use_kernel_bundle(__kernel.get_kernel_bundle());
+#endif
             __cgh.parallel_for<KernelName...>(
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                __kernel,
+#endif
                 sycl::nd_range</*dim=*/1>(sycl::range</*dim=*/1>(__n_groups * __wgroup_size),
                                           sycl::range</*dim=*/1>(__wgroup_size)),
                 [=](sycl::nd_item</*dim=*/1> __item) {
@@ -1395,8 +1504,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         // We shouldn't have any restrictions for _AtomicType type here
         // because we have a single work-group and we don't need to use atomics for inter-work-group communication.
 
-        using __find_or_one_wg_kernel_name =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_one_wg<_CustomName>>;
+        using __find_or_one_wg_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__find_or_kernel_one_wg, _CustomName,
+                                                                                   _Brick, _BrickTag, _Ranges...>>;
 
         // Single WG implementation
         __result = __parallel_find_or_impl_one_wg<__or_tag_check, __find_or_one_wg_kernel_name>()(
@@ -1412,8 +1522,9 @@ __parallel_find_or(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
         using __find_or_kernel_name_init =
             oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel_init<_CustomName>>;
 
-        using __find_or_kernel_name =
-            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<__find_or_kernel<_CustomName>>;
+        using __find_or_kernel_name = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__find_or_kernel, _CustomName,
+                                                                                   _Brick, _BrickTag, _Ranges...>>;
 
         // Multiple WG implementation
         __result =
@@ -1805,8 +1916,11 @@ __parallel_reduce_by_segment_fallback(oneapi::dpl::__internal::__device_backend_
                                                    oneapi::dpl::__ranges::views::all_write(__idx));
 
     // use work group size adjusted to shared local memory as the maximum segment size.
-    std::size_t __wgroup_size =
-        oneapi::dpl::__internal::__slm_adjusted_work_group_size(__q_local, sizeof(__key_type) + sizeof(__val_type));
+    const std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q_local, oneapi::dpl::__internal::__wg_size_limits(
+                       std::min(oneapi::dpl::__internal::__wg_size_default_cap,
+                                oneapi::dpl::__internal::__local_mem_work_group_size(
+                                    __q_local.get_device(), sizeof(__key_type) + sizeof(__val_type)))));
 
     // element is copied if it is the 0th element (marks beginning of first segment), is in an index
     // evenly divisible by wg size (ensures segments are not long), or has a key not equal to the

@@ -25,6 +25,8 @@
 #include <cstddef>
 #include <cstdint> // std::uint8_t
 #include <cassert>
+#include <limits> // std::numeric_limits
+#include <ratio> // std::ratio
 #include <vector>
 
 #include "sycl_defs.h"
@@ -59,56 +61,133 @@ __device_info(const sycl::queue& __q)
 }
 #endif
 
+// The largest work-group size of the device. A kernel may support fewer work-items, see __select_work_group_size.
 inline std::size_t
-__max_work_group_size(const sycl::queue& __q, std::size_t __wg_size_limit = 8192)
+__max_work_group_size(const sycl::device& __device)
 {
-    std::size_t __wg_size = __q.get_device().template get_info<sycl::info::device::max_work_group_size>();
-    // Limit the maximum work-group size supported by the device to optimize the throughput or minimize communication
-    // costs. This is limited to 8192 which is the highest current limit of the tested hardware (opencl:cpu devices) to
-    // prevent huge work-group sizes returned on some devices (e.g., FPGU emulation).
-    return std::min(__wg_size, __wg_size_limit);
+    return __device.template get_info<sycl::info::device::max_work_group_size>();
 }
 
-template <typename _Size>
-_Size
-__slm_adjusted_work_group_size(const sycl::queue& __q, _Size __local_mem_per_wi, _Size __wg_size = 0)
+// The local memory size of the device, or only a share of it, e.g. std::ratio<1, 2> to leave room for the memory used
+// by the compiled kernel
+template <typename _Share = std::ratio<1>>
+std::size_t
+__local_mem_size(const sycl::device& __device)
 {
-    if (__wg_size == 0)
-        __wg_size = __max_work_group_size(__q);
-    auto __local_mem_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
-    return std::min<_Size>(__local_mem_size / __local_mem_per_wi, __wg_size);
+    return __device.template get_info<sycl::info::device::local_mem_size>() * _Share::num / _Share::den;
 }
 
-#if _ONEDPL_USE_SUB_GROUPS
-inline std::size_t
-__max_sub_group_size(const sycl::queue& __q)
+// The largest work-group size whose work-items, each needing __bytes_per_work_item of local memory, fit the local
+// memory of the device (or only a share of it, as for __local_mem_size)
+template <typename _Share = std::ratio<1>>
+std::size_t
+__local_mem_work_group_size(const sycl::device& __device, std::size_t __bytes_per_work_item)
 {
-    auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 0
-    return __supported_sg_sizes.empty() ? 0 : __supported_sg_sizes.back();
+    return __local_mem_size<_Share>(__device) / __bytes_per_work_item;
 }
 
-inline std::size_t
-__min_sub_group_size(const sycl::queue& __q)
+// The default cap of the work-group size: the highest limit of the tested hardware (opencl:cpu devices);
+// it prevents huge sizes returned by some devices (e.g., FPGA emulation).
+// The algorithms define their own caps next to their code.
+inline constexpr std::size_t __wg_size_default_cap = 8192;
+
+// How __select_work_group_size rounds the size down
+enum class __wg_rounding : std::uint8_t
 {
-    auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    //The result of get_info<sycl::info::device::sub_group_sizes>() can be empty; if so, return 1
-    return __supported_sg_sizes.empty() ? 1 : __supported_sg_sizes.front();
+    __none,
+    __sub_group_multiple // a multiple of the largest sub-group size of the device
+};
+
+// Limits of the work-group size of an algorithm beyond the limits of the device and of its kernels
+class __wg_size_limits
+{
+  public:
+    explicit __wg_size_limits(std::size_t __cap_value = __wg_size_default_cap) : __cap(__cap_value) {}
+
+    __wg_size_limits&
+    __set_rounding_mode(__wg_rounding __rounding_mode)
+    {
+        __rounding = __rounding_mode;
+        return *this;
+    }
+
+    // A cap applied on GPUs with AdaptiveCpp only. AdaptiveCpp has no query of the work-group size limit of a kernel,
+    // and its kernels compiled ahead of time for NVIDIA GPUs have no launch bounds: a launch of more work-items than
+    // the registers of a multiprocessor allow (65536 registers, e.g. 1024 work-items of a kernel needing more than 64
+    // registers) fails, and the failure is not reported. 256 work-items leave up to 255 registers per work-item, the
+    // most a kernel can use there, so such a launch fits whatever the user functors and value types are.
+    __wg_size_limits&
+    __set_acpp_gpu_cap(std::size_t __cap_value)
+    {
+        __acpp_gpu_cap = __cap_value;
+        return *this;
+    }
+
+    std::size_t
+    __get_cap() const
+    {
+        return __cap;
+    }
+
+    __wg_rounding
+    __get_rounding_mode() const
+    {
+        return __rounding;
+    }
+
+    std::size_t
+    __get_acpp_gpu_cap() const
+    {
+        return __acpp_gpu_cap;
+    }
+
+  private:
+    std::size_t __cap = {};
+    __wg_rounding __rounding = __wg_rounding::__none;
+    std::size_t __acpp_gpu_cap = std::numeric_limits<std::size_t>::max();
+};
+
+// The sub-group sizes supported by the device; the list may be empty and is not guaranteed to be sorted
+inline std::vector<std::size_t>
+__sub_group_sizes(const sycl::device& __device)
+{
+    return __device.template get_info<sycl::info::device::sub_group_sizes>();
 }
-#endif // _ONEDPL_USE_SUB_GROUPS
+
+// The largest sub-group size of the device, or 0 if the device reports none
+inline std::size_t
+__max_sub_group_size(const sycl::device& __device)
+{
+    const std::vector<std::size_t> __sg_sizes = __sub_group_sizes(__device);
+    return __sg_sizes.empty() ? 0 : *std::max_element(__sg_sizes.begin(), __sg_sizes.end());
+}
+
+// The smallest sub-group size of the device, or 1 if the device reports none
+inline std::size_t
+__min_sub_group_size(const sycl::device& __device)
+{
+    const std::vector<std::size_t> __sg_sizes = __sub_group_sizes(__device);
+    return __sg_sizes.empty() ? 1 : *std::min_element(__sg_sizes.begin(), __sg_sizes.end());
+}
+
+// Whether the device supports the sub-group size
+inline bool
+__supports_sub_group_size(const sycl::device& __device, std::size_t __target_size)
+{
+    const std::vector<std::size_t> __sg_sizes = __sub_group_sizes(__device);
+    return std::find(__sg_sizes.begin(), __sg_sizes.end(), __target_size) != __sg_sizes.end();
+}
+
+inline std::uint32_t
+__max_compute_units(const sycl::device& __device)
+{
+    return __device.template get_info<sycl::info::device::max_compute_units>();
+}
 
 inline std::uint32_t
 __max_compute_units(const sycl::queue& __q)
 {
-    return __q.get_device().template get_info<sycl::info::device::max_compute_units>();
-}
-
-inline bool
-__supports_sub_group_size(const sycl::queue& __q, std::size_t __target_size)
-{
-    const std::vector<std::size_t> __subgroup_sizes =
-        __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    return std::find(__subgroup_sizes.begin(), __subgroup_sizes.end(), __target_size) != __subgroup_sizes.end();
+    return __max_compute_units(__q.get_device());
 }
 
 inline bool
@@ -161,6 +240,33 @@ __kernel_sub_group_size(const sycl::queue& __q, const sycl::kernel& __kernel)
     return __sg_size;
 }
 //-----------------------------------------------------------------------------
+
+// The work-group size of an algorithm: the device limit, then the cap and the other limits of the algorithm, then
+// the limits of the given compiled kernels, rounded down as requested. 0 means that no work-group size satisfies the
+// limits (e.g., one work-item needs more SLM than the device has).
+template <typename... _Kernels>
+std::size_t
+__select_work_group_size(const sycl::queue& __q, const __wg_size_limits& __limits, const _Kernels&... __kernels)
+{
+    const sycl::device __device = __q.get_device();
+    std::size_t __wg_size = std::min(__max_work_group_size(__device), __limits.__get_cap());
+#if _ONEDPL_ACPP_VERSION
+    if (__device.is_gpu())
+        __wg_size = std::min(__wg_size, __limits.__get_acpp_gpu_cap());
+#endif
+
+    // A kernel may support fewer work-items per work-group than the device, e.g. by the registers it needs
+    if constexpr (sizeof...(_Kernels) > 0)
+        __wg_size = std::min({__wg_size, __kernel_work_group_size(__q, __kernels)...});
+
+    if (__limits.__get_rounding_mode() == __wg_rounding::__sub_group_multiple)
+    {
+        const std::size_t __max_sg_size = __max_sub_group_size(__device);
+        if (__max_sg_size > 0)
+            __wg_size -= __wg_size % __max_sg_size;
+    }
+    return __wg_size;
+}
 
 } // namespace __internal
 
@@ -325,7 +431,8 @@ __print_device_debug_info(const sycl::queue& __q, size_t __wg_size = 0, size_t _
     std::cout << " > max compute units:   " << (__max_cu ? __max_cu : oneapi::dpl::__internal::__max_compute_units(__q))
               << ::std::endl;
     std::cout << " > max work-group size: "
-              << (__wg_size ? __wg_size : oneapi::dpl::__internal::__max_work_group_size(__q)) << ::std::endl;
+              << (__wg_size ? __wg_size : oneapi::dpl::__internal::__max_work_group_size(__q.get_device()))
+              << ::std::endl;
 }
 #else
 inline void

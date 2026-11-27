@@ -146,12 +146,13 @@ __parallel_reduce_by_segment_fallback_with_group_algorithms(sycl::queue& __q, _R
 
     // Limit the work-group size to prevent large sizes on CPUs. Empirically found value.
     // This value exceeds the current practical limit for GPUs, but may need to be re-evaluated in the future.
-    std::size_t __wgroup_size = oneapi::dpl::__internal::__max_work_group_size(__q, (std::size_t)2048);
-
-    // adjust __wgroup_size according to local memory limit. Double the requirement on __val_type due to sycl group algorithm's use
-    // of SLM.
-    __wgroup_size = oneapi::dpl::__internal::__slm_adjusted_work_group_size(
-        __q, sizeof(__key_type) + 2 * sizeof(__val_type), __wgroup_size);
+    constexpr std::size_t __wg_size_reduce_by_segment_cap = 2048;
+    // Adjust the work-group size to the local memory limit. Double the requirement on __val_type due to sycl group
+    // algorithm's use of SLM.
+    std::size_t __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q, oneapi::dpl::__internal::__wg_size_limits(std::min(
+                 __wg_size_reduce_by_segment_cap, oneapi::dpl::__internal::__local_mem_work_group_size(
+                                                      __q.get_device(), sizeof(__key_type) + 2 * sizeof(__val_type)))));
 
 #if _ONEDPL_COMPILE_KERNEL
     auto __seg_reduce_count_kernel =
@@ -162,11 +163,10 @@ __parallel_reduce_by_segment_fallback_with_group_algorithms(sycl::queue& __q, _R
         __par_backend_hetero::__internal::__kernel_compiler<_SegReduceWgKernel>::__compile(__q);
     auto __seg_reduce_prefix_kernel =
         __par_backend_hetero::__internal::__kernel_compiler<_SegReducePrefixKernel>::__compile(__q);
-    __wgroup_size =
-        std::min({__wgroup_size, oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_count_kernel),
-                  oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_offset_kernel),
-                  oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_wg_kernel),
-                  oneapi::dpl::__internal::__kernel_work_group_size(__q, __seg_reduce_prefix_kernel)});
+    // The kernels may support fewer work-items per work-group
+    __wgroup_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q, oneapi::dpl::__internal::__wg_size_limits(__wgroup_size), __seg_reduce_count_kernel,
+        __seg_reduce_offset_kernel, __seg_reduce_wg_kernel, __seg_reduce_prefix_kernel);
 #endif
 
     std::size_t __n_groups = oneapi::dpl::__internal::__dpl_ceiling_div(__n, __wgroup_size * __vals_per_item);

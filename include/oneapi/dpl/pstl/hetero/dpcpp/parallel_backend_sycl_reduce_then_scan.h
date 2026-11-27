@@ -1889,6 +1889,19 @@ class __reduce_then_scan_reduce_kernel;
 template <typename... _Name>
 class __reduce_then_scan_scan_kernel;
 
+// The name of a reduce-then-scan kernel whose work-group size limit is queried. A policy with its own name keeps the name
+// of the kernel; an unnamed kernel of a policy with the default name gets a name made of the types of the kernel, as
+// __kernel_name_generator does, since a kernel without a name cannot be queried.
+template <template <typename...> class _BaseName, typename _ScanOpsTag, typename _CustomName, typename... _Args>
+using __reduce_then_scan_kernel_name =
+#if __SYCL_UNNAMED_LAMBDA__
+    std::conditional_t<__internal::_HasDefaultName<_CustomName>::value,
+                       __internal::__kernel_name_generator<_BaseName, _CustomName, _ScanOpsTag, _Args...>,
+                       _BaseName<_ScanOpsTag, _CustomName>>;
+#else
+    _BaseName<_ScanOpsTag, _CustomName>;
+#endif
+
 template <bool __is_inclusive, bool __is_unique_pattern_v, typename _ScanOpsTag, typename _GenReduceInput,
           typename _ReduceOp, typename _InitType, typename _KernelName>
 struct __parallel_reduce_then_scan_reduce_submitter;
@@ -2479,35 +2492,65 @@ __parallel_transform_reduce_then_scan_impl(
     _Inclusive, _IsUniquePattern, bool __use_subgroup_ops, _StopPosInitState __stop_pos_initial_state,
     sycl::event __prior_event)
 {
-    using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_reduce_kernel<_ScanOpsTag, _CustomName>>;
-    using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-        __reduce_then_scan_scan_kernel<_ScanOpsTag, _CustomName>>;
+    using _ReduceKernelName = __reduce_then_scan_kernel_name<
+        __reduce_then_scan_reduce_kernel, _ScanOpsTag, _CustomName, std::bool_constant<_Bounded>, _ExtraStorageT,
+        std::decay_t<_InRng>, std::decay_t<_OutRng>, _GenReduceInput, _ReduceOp, _GenScanInput, _ScanInputTransform,
+        _WriteOp, _InitType, _Inclusive, _IsUniquePattern, _StopPosInitState>;
+    using _ScanKernelName = __reduce_then_scan_kernel_name<
+        __reduce_then_scan_scan_kernel, _ScanOpsTag, _CustomName, std::bool_constant<_Bounded>, _ExtraStorageT,
+        std::decay_t<_InRng>, std::decay_t<_OutRng>, _GenReduceInput, _ReduceOp, _GenScanInput, _ScanInputTransform,
+        _WriteOp, _InitType, _Inclusive, _IsUniquePattern, _StopPosInitState>;
+    using _ReduceKernel = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_ReduceKernelName>;
+    using _ScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<_ScanKernelName>;
     using _ValueType = typename _InitType::__value_type;
     using oneapi::dpl::__internal::__dpl_ceiling_div;
 
-    // Query the device's supported sub-group sizes to allocate storage conservatively and round
-    // the work-group size appropriately. The actual sub-group size used by each kernel is determined
-    // on the device (see __get_reduce_then_scan_actual_sub_group_size): a compile-time constant on the SPIR-V path and
-    // the actual per-sub-group get_local_range() otherwise.
-    const auto __supported_sg_sizes = __q.get_device().template get_info<sycl::info::device::sub_group_sizes>();
-    const auto [__min_sg_it, __max_sg_it] =
-        std::minmax_element(__supported_sg_sizes.begin(), __supported_sg_sizes.end());
-    const std::uint8_t __min_sub_group_size = *__min_sg_it;
-    const std::uint8_t __max_sub_group_size = *__max_sg_it;
+    const sycl::device __device = __q.get_device();
+
+    // Query the device's supported sub-group sizes to allocate storage conservatively. The actual sub-group size used
+    // by each kernel is determined on the device (see __get_reduce_then_scan_actual_sub_group_size): a compile-time
+    // constant on the SPIR-V path and the actual per-sub-group get_local_range() otherwise.
+    const std::uint8_t __min_sub_group_size =
+        static_cast<std::uint8_t>(oneapi::dpl::__internal::__min_sub_group_size(__device));
     // Empirically determined maximum. May be less for non-full blocks.
-    const bool __target_is_gpu = __q.get_device().is_gpu();
+    const bool __target_is_gpu = __device.is_gpu();
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
-    // empirical derived caps for workgroup size based upon target
-    const std::uint32_t __wg_size_cap = __target_is_gpu ? 1024 : 128;
-    const std::uint32_t __max_work_group_size = oneapi::dpl::__internal::__max_work_group_size(__q, __wg_size_cap);
-    // Round down to nearest multiple of the max subgroup size to ensure compatibility with all sub-group sizes
-    const std::uint32_t __work_group_size = (__max_work_group_size / __max_sub_group_size) * __max_sub_group_size;
+    // Empirically derived caps of the work-group size based upon the target
+    constexpr std::size_t __wg_size_reduce_then_scan_gpu_cap = 1024;
+    constexpr std::size_t __wg_size_reduce_then_scan_cpu_cap = 128;
+    // The reduce kernel needs about 70 registers per work-item on NVIDIA GPUs, more than 1024 work-items allow
+    constexpr std::size_t __wg_size_reduce_then_scan_acpp_gpu_cap = 256;
+    const std::size_t __wg_size_cap =
+        __target_is_gpu ? __wg_size_reduce_then_scan_gpu_cap : __wg_size_reduce_then_scan_cpu_cap;
+    // Without sub-group operations (e.g. for value types that are not trivially copyable) a work-group keeps
+    // __wg + ceil(__wg / __min_sub_group_size) + 1 values in SLM: one per work-item and one per sub-group, plus one.
+    // Counting sizeof + ceil(sizeof / __min_sub_group_size) bytes per work-item and two work-items fewer covers them.
+    // 1/32 of SLM is left for the runtime, which allocates SLM in granules (e.g. 1 KB, plus 32 bytes for the kernel).
+    const std::size_t __slm_bytes_per_work_item =
+        sizeof(_ValueType) + __dpl_ceiling_div(sizeof(_ValueType), static_cast<std::size_t>(__min_sub_group_size));
+    const std::size_t __slm_wg_size =
+        oneapi::dpl::__internal::__local_mem_work_group_size<std::ratio<31, 32>>(__device, __slm_bytes_per_work_item);
+    const std::size_t __cap =
+        __use_subgroup_ops ? __wg_size_cap : std::min(__wg_size_cap, __slm_wg_size > 2 ? __slm_wg_size - 2 : 0);
+    // Rounded down to a multiple of the max sub-group size to ensure compatibility with all sub-group sizes
+    std::uint32_t __work_group_size = static_cast<std::uint32_t>(oneapi::dpl::__internal::__select_work_group_size(
+        __q, oneapi::dpl::__internal::__wg_size_limits(__cap)
+                 .__set_rounding_mode(oneapi::dpl::__internal::__wg_rounding::__sub_group_multiple)
+                 .__set_acpp_gpu_cap(__wg_size_reduce_then_scan_acpp_gpu_cap)));
+#if _ONEDPL_COMPILE_KERNEL
+    // The kernels may support fewer work-items per work-group, e.g. by the registers they need
+    const std::array<sycl::kernel, 2> __kernels =
+        __internal::__kernel_compiler<_ReduceKernelName, _ScanKernelName>::__compile(__q);
+    __work_group_size = static_cast<std::uint32_t>(oneapi::dpl::__internal::__select_work_group_size(
+        __q,
+        oneapi::dpl::__internal::__wg_size_limits(__work_group_size)
+            .__set_rounding_mode(oneapi::dpl::__internal::__wg_rounding::__sub_group_multiple),
+        __kernels[0], __kernels[1]));
+#endif
 
     // use work groups to match the number of compute units
-    const std::uint32_t __max_compute_units =
-        __q.get_device().template get_info<sycl::info::device::max_compute_units>();
+    const std::uint32_t __max_compute_units = oneapi::dpl::__internal::__max_compute_units(__device);
 
     std::size_t __inputs_remaining = __n;
     if constexpr (__is_unique_pattern_v)

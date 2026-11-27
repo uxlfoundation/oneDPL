@@ -10,6 +10,7 @@
 #ifndef _ONEDPL_KT_UTILS_H
 #define _ONEDPL_KT_UTILS_H
 
+#include "../../../pstl/hetero/dpcpp/parallel_backend_sycl_utils.h" // __local_mem_size, __max_compute_units
 #include "../../../pstl/hetero/dpcpp/sycl_defs.h"
 #include "../../../pstl/utils.h"
 #include "kt_defs.h"
@@ -49,9 +50,9 @@ __get_num_cooperative_groups(const _Kernel& __kernel, sycl::queue& __q, std::uin
     constexpr std::uint32_t __lanes_per_xe = 2048;
     const std::uint32_t __max_groups_per_xe = __lanes_per_xe / __work_group_size;
 
-    const std::uint32_t __max_slm_xe = __q.get_device().get_info<sycl::info::device::local_mem_size>();
-    const std::uint32_t __xes_on_device =
-        __q.get_device().get_info<sycl::info::device::max_compute_units>() / __xve_per_xe;
+    const sycl::device __device = __q.get_device();
+    const std::uint32_t __max_slm_xe = oneapi::dpl::__internal::__local_mem_size(__device);
+    const std::uint32_t __xes_on_device = oneapi::dpl::__internal::__max_compute_units(__device) / __xve_per_xe;
 
     // Exceptions for excessive SLM usage will be thrown by the SYCL kernel submission.
     __slm_size_bytes = std::min(__slm_size_bytes, __max_slm_xe);
