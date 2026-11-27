@@ -12,7 +12,7 @@ Both in-place and out-of-place overloads are provided. Out-of-place overloads do
 The functions implement a Onesweep* [#fnote1]_ algorithm variant.
 
 .. note::
-   ``radix_sort`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
+   ``radix_sort`` is currently available for Intel® Arc™ B-Series, Intel® Data Center GPU Max Series, and Intel® GPU D270.
    The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater is required, and the Unified Runtime adapter over
    Level Zero must be used (which is the default adapter for Intel GPUs). For more information, please refer to
    |dpcpp_device_selection|_.

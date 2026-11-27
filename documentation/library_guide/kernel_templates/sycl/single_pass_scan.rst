@@ -17,8 +17,10 @@ with `Intel® Data Center GPU Max 1100
 <https://www.intel.com/content/www/us/en/products/sku/232876/intel-data-center-gpu-max-1100/specifications.html>`_
 , `Intel® Data Center GPU Max 1550
 <https://www.intel.com/content/www/us/en/products/sku/232873/intel-data-center-gpu-max-1550/specifications.html>`_
-, and `Intel® Arc™ B580 Graphics
-<https://www.intel.com/content/www/us/en/products/sku/241598/intel-arc-b580-graphics/specifications.html>`_.
+, `Intel® Arc™ B580 Graphics
+<https://www.intel.com/content/www/us/en/products/sku/241598/intel-arc-b580-graphics/specifications.html>`_
+, and `Intel® GPU D270
+<https://www.intel.com/content/www/us/en/products/details/discrete-gpus/data-center-gpu/d-series.html>`_.
 
 A synopsis of the ``inclusive_scan`` function is provided below:
 

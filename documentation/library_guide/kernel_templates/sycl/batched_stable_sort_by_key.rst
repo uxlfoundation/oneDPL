@@ -33,7 +33,7 @@ configuration may be chosen for performance alone (see :ref:`Selecting a Sort Co
    - ``merge_wg_resident_tag`` has no additional requirements.
    - ``radix_wg_resident_tag`` requires a compiler with ``SYCL_EXT_ONEAPI_SUB_GROUP_MASK`` support, and a device
      which supports a sub-group size of `32`.
-   - ``radix_multi_wg_tag`` is currently available for Intel® Arc™ B-Series and Intel® Data Center GPU Max Series.
+   - ``radix_multi_wg_tag`` is currently available for Intel® Arc™ B-Series, Intel® Data Center GPU Max Series, and Intel® GPU D270.
      The Intel® oneAPI DPC++/C++ Compiler 2025.1.0 or greater is required, and the Unified Runtime adapter over
      Level Zero must be used (which is the default adapter for Intel GPUs). For more information, please refer to
      |dpcpp_device_selection|_.
