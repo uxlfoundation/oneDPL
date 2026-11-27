@@ -25,6 +25,7 @@
 #include <cstddef>
 #include <cstdint> // std::uint8_t
 #include <cassert>
+#include <limits> // std::numeric_limits
 #include <ratio> // std::ratio
 #include <vector>
 
@@ -109,6 +110,18 @@ class __wg_size_limits
         return *this;
     }
 
+    // A cap applied on GPUs with AdaptiveCpp only. AdaptiveCpp has no query of the work-group size limit of a kernel,
+    // and its kernels compiled ahead of time for NVIDIA GPUs have no launch bounds: a launch of more work-items than
+    // the registers of a multiprocessor allow (65536 registers, e.g. 1024 work-items of a kernel needing more than 64
+    // registers) fails, and the failure is not reported. 256 work-items leave up to 255 registers per work-item, the
+    // most a kernel can use there, so such a launch fits whatever the user functors and value types are.
+    __wg_size_limits&
+    __set_acpp_gpu_cap(std::size_t __cap_value)
+    {
+        __acpp_gpu_cap = __cap_value;
+        return *this;
+    }
+
     std::size_t
     __get_cap() const
     {
@@ -127,10 +140,17 @@ class __wg_size_limits
         return __rounding;
     }
 
+    std::size_t
+    __get_acpp_gpu_cap() const
+    {
+        return __acpp_gpu_cap;
+    }
+
   private:
     std::size_t __cap = {};
     std::size_t __slm_per_wi = {};
     __wg_rounding __rounding = __wg_rounding::__none;
+    std::size_t __acpp_gpu_cap = std::numeric_limits<std::size_t>::max();
 };
 
 // The sub-group sizes supported by the device; the list may be empty and is not guaranteed to be sorted
@@ -236,6 +256,10 @@ __select_work_group_size(const sycl::queue& __q, const __wg_size_limits& __limit
 {
     const sycl::device __device = __q.get_device();
     std::size_t __wg_size = std::min(__max_work_group_size(__device), __limits.__get_cap());
+#if _ONEDPL_ACPP_VERSION
+    if (__device.is_gpu())
+        __wg_size = std::min(__wg_size, __limits.__get_acpp_gpu_cap());
+#endif
 
     if (__limits.__get_slm_per_work_item() > 0)
         __wg_size = std::min(__wg_size, __local_mem_size(__device) / __limits.__get_slm_per_work_item());

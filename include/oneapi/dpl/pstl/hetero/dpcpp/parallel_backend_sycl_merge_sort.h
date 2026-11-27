@@ -730,7 +730,10 @@ __submit_selecting_leaf(sycl::queue& __q, _Range&& __rng, _Compare __comp, __mer
     const std::size_t __n = oneapi::dpl::__ranges::__size(__rng);
     sycl::device __device = __q.get_device();
 
-    const std::size_t __max_wg_size = oneapi::dpl::__internal::__max_work_group_size(__device);
+    // The user comparator runs in the kernel and may need many registers
+    constexpr std::size_t __wg_size_merge_sort_leaf_acpp_gpu_cap = 256;
+    const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+        __q, oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_merge_sort_leaf_acpp_gpu_cap));
 
     const bool __is_cpu = __device.is_cpu();
     // At least 1 even if the device reports no sub-group sizes

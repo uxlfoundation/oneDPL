@@ -2517,22 +2517,16 @@ __parallel_transform_reduce_then_scan_impl(
     constexpr bool __inclusive = _Inclusive::value;
     constexpr bool __is_unique_pattern_v = _IsUniquePattern::value;
     // Empirically derived caps of the work-group size based upon the target
-#if _ONEDPL_ACPP_VERSION
-    // AdaptiveCpp has no query of the work-group size limit of a kernel, and its kernels compiled ahead of time for
-    // NVIDIA GPUs have no launch bounds: a launch of 1024 work-items of a kernel needing more than 64 registers per
-    // work-item fails, and the failure is not reported. 256 work-items leave up to 255 registers per work-item, the
-    // most a kernel can use there (65536 registers per multiprocessor), so the launch fits whatever the value types
-    // are.
-    constexpr std::size_t __wg_size_reduce_then_scan_gpu_cap = 256;
-#else
     constexpr std::size_t __wg_size_reduce_then_scan_gpu_cap = 1024;
-#endif
     constexpr std::size_t __wg_size_reduce_then_scan_cpu_cap = 128;
+    // The reduce kernel needs about 70 registers per work-item on NVIDIA GPUs, more than 1024 work-items allow
+    constexpr std::size_t __wg_size_reduce_then_scan_acpp_gpu_cap = 256;
     // Rounded down to a multiple of the max sub-group size to ensure compatibility with all sub-group sizes
     std::uint32_t __work_group_size = static_cast<std::uint32_t>(oneapi::dpl::__internal::__select_work_group_size(
         __q, oneapi::dpl::__internal::__wg_size_limits(__target_is_gpu ? __wg_size_reduce_then_scan_gpu_cap
                                                                        : __wg_size_reduce_then_scan_cpu_cap)
-                 .__set_rounding_mode(oneapi::dpl::__internal::__wg_rounding::__sub_group_multiple)));
+                 .__set_rounding_mode(oneapi::dpl::__internal::__wg_rounding::__sub_group_multiple)
+                 .__set_acpp_gpu_cap(__wg_size_reduce_then_scan_acpp_gpu_cap)));
 #if _ONEDPL_COMPILE_KERNEL
     // The kernels may support fewer work-items per work-group, e.g. by the registers they need
     const std::array<sycl::kernel, 2> __kernels =
