@@ -232,6 +232,33 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
     const std::size_t __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
         __q, oneapi::dpl::__internal::__wg_size_limits().__set_acpp_gpu_cap(__wg_size_scan_single_group_acpp_gpu_cap));
 
+    // Work-group size chosen at run time
+    auto __dynamic_group_scan_f = [&](std::size_t __wg_size) {
+        // A policy with its own name keeps the name of the kernel; an unnamed kernel of a policy with the default name
+        // gets a name made of the types of the kernel, as __kernel_name_generator does, since a kernel without a name
+        // cannot be queried
+        using _DynamicGroupScanKernelName =
+#if __SYCL_UNNAMED_LAMBDA__
+            std::conditional_t<
+                __internal::_HasDefaultName<_CustomName>::value,
+                __internal::__kernel_name_generator<__scan_single_wg_dynamic_kernel, _CustomName, _BinaryOperation,
+                                                    _InRng, _OutRng, _UnaryOperation, _InitType, _Inclusive>,
+                __scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>>;
+#else
+            __scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>;
+#endif
+#if _ONEDPL_COMPILE_KERNEL
+        // The kernel may support fewer work-items per work-group, e.g. by the registers the user functors need
+        const sycl::kernel __kernel = __internal::__kernel_compiler<_DynamicGroupScanKernelName>::__compile(__q);
+        __wg_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__wg_size), __kernel);
+#endif
+        return __parallel_transform_scan_dynamic_single_group_submitter<
+            _Inclusive::value, __internal::__optional_kernel_name<_DynamicGroupScanKernelName>>()(
+            __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op,
+            __wg_size);
+    };
+
     // Specialization for devices that have a max work-group size of 1024
     constexpr ::std::uint16_t __targeted_wg_size = 1024;
 
@@ -242,15 +269,33 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
             constexpr ::std::uint16_t __wg_size = ::std::min(__size, __targeted_wg_size);
             constexpr ::std::uint16_t __num_elems_per_item =
                 oneapi::dpl::__internal::__dpl_ceiling_div(__size, __wg_size);
-
+            using _WGSize = std::integral_constant<std::uint16_t, __wg_size>;
+            using _NumElemsPerItem = std::integral_constant<std::uint16_t, __num_elems_per_item>;
+            // As above for the name; the work-group size and the number of elements per item distinguish the kernels
+            using _GroupScanKernelName =
+#if __SYCL_UNNAMED_LAMBDA__
+                std::conditional_t<
+                    __internal::_HasDefaultName<_CustomName>::value,
+                    __internal::__kernel_name_generator<__scan_single_wg_kernel, _CustomName, _WGSize, _NumElemsPerItem,
+                                                        _BinaryOperation, _Inclusive, _InRng, _OutRng, _UnaryOperation,
+                                                        _InitType>,
+                    __scan_single_wg_kernel<_WGSize, _NumElemsPerItem, _BinaryOperation, _Inclusive, _CustomName>>;
+#else
+                __scan_single_wg_kernel<_WGSize, _NumElemsPerItem, _BinaryOperation, _Inclusive, _CustomName>;
+#endif
+#if _ONEDPL_COMPILE_KERNEL
+            // The kernel may support fewer work-items per work-group than its fixed size, e.g. by the registers the
+            // user functors need: then take the work-group size chosen at run time
+            const sycl::kernel __kernel = __internal::__kernel_compiler<_GroupScanKernelName>::__compile(__q);
+            const std::size_t __kernel_wg_size = oneapi::dpl::__internal::__kernel_work_group_size(__q, __kernel);
+            if (__kernel_wg_size < __wg_size)
+                return __dynamic_group_scan_f(__kernel_wg_size);
+#endif
             return __parallel_transform_scan_static_single_group_submitter<
                 _Inclusive::value, __num_elems_per_item, __wg_size,
-                oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-                    __scan_single_wg_kernel<std::integral_constant<std::uint16_t, __wg_size>,
-                                            std::integral_constant<std::uint16_t, __num_elems_per_item>,
-                                            _BinaryOperation, _Inclusive, _CustomName>>>()(
-                __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op,
-                __unary_op);
+                __internal::__optional_kernel_name<_GroupScanKernelName>>()(__q, std::forward<_InRng>(__in_rng),
+                                                                            std::forward<_OutRng>(__out_rng), __n,
+                                                                            __init, __binary_op, __unary_op);
         };
         if (__n <= 16)
             return __single_group_scan_f(std::integral_constant<::std::uint16_t, 16>{});
@@ -277,12 +322,7 @@ __parallel_transform_scan_single_group(sycl::queue& __q, _InRng&& __in_rng, _Out
     }
     else
     {
-        using _DynamicGroupScanKernel = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __par_backend_hetero::__scan_single_wg_dynamic_kernel<_BinaryOperation, _CustomName>>;
-
-        return __parallel_transform_scan_dynamic_single_group_submitter<_Inclusive::value, _DynamicGroupScanKernel>()(
-            __q, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __init, __binary_op, __unary_op,
-            __max_wg_size);
+        return __dynamic_group_scan_f(__max_wg_size);
     }
 }
 
