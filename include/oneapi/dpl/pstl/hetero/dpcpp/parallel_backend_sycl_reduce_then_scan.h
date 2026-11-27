@@ -2521,10 +2521,18 @@ __parallel_transform_reduce_then_scan_impl(
     constexpr std::size_t __wg_size_reduce_then_scan_cpu_cap = 128;
     // The reduce kernel needs about 70 registers per work-item on NVIDIA GPUs, more than 1024 work-items allow
     constexpr std::size_t __wg_size_reduce_then_scan_acpp_gpu_cap = 256;
+    const std::size_t __wg_size_cap =
+        __target_is_gpu ? __wg_size_reduce_then_scan_gpu_cap : __wg_size_reduce_then_scan_cpu_cap;
+    // Without sub-group operations (e.g. for value types that are not trivially copyable) every work-item and every
+    // sub-group keep a value in SLM; pessimistically double it to take into account memory used by compiled kernel
+    const std::size_t __cap =
+        __use_subgroup_ops
+            ? __wg_size_cap
+            : std::min(__wg_size_cap,
+                       oneapi::dpl::__internal::__local_mem_work_group_size(__device, 2 * sizeof(_ValueType)));
     // Rounded down to a multiple of the max sub-group size to ensure compatibility with all sub-group sizes
     std::uint32_t __work_group_size = static_cast<std::uint32_t>(oneapi::dpl::__internal::__select_work_group_size(
-        __q, oneapi::dpl::__internal::__wg_size_limits(__target_is_gpu ? __wg_size_reduce_then_scan_gpu_cap
-                                                                       : __wg_size_reduce_then_scan_cpu_cap)
+        __q, oneapi::dpl::__internal::__wg_size_limits(__cap)
                  .__set_rounding_mode(oneapi::dpl::__internal::__wg_rounding::__sub_group_multiple)
                  .__set_acpp_gpu_cap(__wg_size_reduce_then_scan_acpp_gpu_cap)));
 #if _ONEDPL_COMPILE_KERNEL
