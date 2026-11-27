@@ -421,6 +421,12 @@ struct __parallel_filter_single_group_base
     __execute(sycl::queue& __q, _Size __n, std::size_t __max_wg_size, std::size_t __element_size,
               _KernelBody&& __kernel_body, _Ranges&&... __rngs)
     {
+#if _ONEDPL_COMPILE_KERNEL
+        // The kernel may support fewer work-items per work-group, e.g. by the registers the user functors need
+        auto __kernel = __internal::__kernel_compiler<_KernelName...>::__compile(__q);
+        __max_wg_size = oneapi::dpl::__internal::__select_work_group_size(
+            __q, oneapi::dpl::__internal::__wg_size_limits(__max_wg_size), __kernel);
+#endif
         assert(__max_wg_size <= std::numeric_limits<std::uint16_t>::max());
 
         __result_storage<_Size> __result{__q, _NResults};
@@ -435,8 +441,14 @@ struct __parallel_filter_single_group_base
             auto __res_acc = __get_accessor(sycl::write_only, __result, __hdl, __dpl_sycl::__no_init{});
             const auto __wg_size = static_cast<std::uint16_t>(std::min<std::size_t>(__n_uniform, __max_wg_size));
 
-            __hdl.parallel_for<_KernelName...>(sycl::nd_range<1>(__wg_size, __wg_size),
-                [=](sycl::nd_item<1> __self_item) {
+#if _ONEDPL_COMPILE_KERNEL && _ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT
+            __hdl.use_kernel_bundle(__kernel.get_kernel_bundle());
+#endif
+            __hdl.parallel_for<_KernelName...>(
+#if _ONEDPL_COMPILE_KERNEL && !_ONEDPL_SYCL2020_KERNEL_BUNDLE_PRESENT && _ONEDPL_LIBSYCL_PROGRAM_PRESENT
+                __kernel,
+#endif
+                sycl::nd_range<1>(__wg_size, __wg_size), [=](sycl::nd_item<1> __self_item) {
                     std::uint16_t* __lm_ptr = __dpl_sycl::__get_accessor_ptr(__lacc);
                     _Size* __res_ptr = __res_acc.__data();
                     __kernel_body(__self_item, __wg_size, __n_uniform, __lm_ptr, __res_ptr);
@@ -651,8 +663,9 @@ __parallel_unique_copy(oneapi::dpl::__internal::__device_backend_tag, _Execution
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory(__q_local, __n))
     {
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __scan_copy_single_wg_kernel<_CustomName>>;
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+                __scan_copy_single_wg_kernel, _CustomName, _Range1, _Range2, _BinaryPredicate>>;
         __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
             __q_local, std::forward<_Range1>(__rng), std::forward<_Range2>(__result), __n, __n_out,
             oneapi::dpl::__internal::__unique_at_index<_BinaryPredicate, true>{__pred}, _Assign{}, __max_wg_size);
@@ -749,8 +762,9 @@ __parallel_copy_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPoli
     if (__n <= __max_wg_size * __max_elem_per_item &&
         __parallel_filter_single_group_base::__enough_local_memory(__q_local, __n))
     {
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __scan_copy_single_wg_kernel<_CustomName>>;
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<
+                __scan_copy_single_wg_kernel, _CustomName, _InRng, _OutRng, _Pred, _Assign>>;
         __ret = __parallel_copy_if_single_group_functor<_KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), std::forward<_OutRng>(__out_rng), __n, __n_out,
             oneapi::dpl::__internal::__pred_at_index{__pred}, __assign, __max_wg_size);
@@ -792,8 +806,9 @@ __parallel_remove_if(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPo
         __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
             __q_local, __n, /*__element_size=*/sizeof(oneapi::dpl::__internal::__value_t<_InRng>)))
     {
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __scan_compact_single_wg_kernel<_CustomName>>;
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__scan_compact_single_wg_kernel,
+                                                                                   _CustomName, _InRng, _Pred>>;
         return __parallel_compact_single_group_functor<_KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), __n, oneapi::dpl::__internal::__pred_at_index{__keep_pred},
             __max_wg_size);
@@ -827,8 +842,9 @@ __parallel_unique(oneapi::dpl::__internal::__device_backend_tag, _ExecutionPolic
         __parallel_filter_single_group_base::__enough_local_memory</*__is_in_place=*/true>(
             __q_local, __n, /*__element_size=*/sizeof(oneapi::dpl::__internal::__value_t<_InRng>)))
     {
-        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_provider<
-            __scan_compact_single_wg_kernel<_CustomName>>;
+        using _KernelName = oneapi::dpl::__par_backend_hetero::__internal::__optional_kernel_name<
+            oneapi::dpl::__par_backend_hetero::__internal::__kernel_name_generator<__scan_compact_single_wg_kernel,
+                                                                                   _CustomName, _InRng, _BinaryPred>>;
         return __parallel_compact_single_group_functor<_KernelName>()(
             __q_local, std::forward<_InRng>(__in_rng), __n,
             oneapi::dpl::__internal::__unique_at_index<_BinaryPred, true>{__pred}, __max_wg_size);
