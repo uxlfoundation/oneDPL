@@ -2519,10 +2519,13 @@ __parallel_transform_reduce_then_scan_impl(
     // Empirically derived caps of the work-group size based upon the target
     constexpr std::size_t __wg_size_reduce_then_scan_gpu_cap = 1024;
     constexpr std::size_t __wg_size_reduce_then_scan_cpu_cap = 128;
+    // Without sub-group operations the sub-group scans go through SLM, empirically the fastest with 512 work-items
+    constexpr std::size_t __wg_size_reduce_then_scan_slm_gpu_cap = 512;
     // The reduce kernel needs about 70 registers per work-item on NVIDIA GPUs, more than 1024 work-items allow
     constexpr std::size_t __wg_size_reduce_then_scan_acpp_gpu_cap = 256;
-    const std::size_t __wg_size_cap =
-        __target_is_gpu ? __wg_size_reduce_then_scan_gpu_cap : __wg_size_reduce_then_scan_cpu_cap;
+    const std::size_t __wg_size_cap = !__target_is_gpu     ? __wg_size_reduce_then_scan_cpu_cap
+                                      : __use_subgroup_ops ? __wg_size_reduce_then_scan_gpu_cap
+                                                           : __wg_size_reduce_then_scan_slm_gpu_cap;
     // Without sub-group operations (e.g. for value types that are not trivially copyable) a work-group keeps
     // __wg + ceil(__wg / __min_sub_group_size) + 1 values in SLM: one per work-item and one per sub-group, plus one.
     // Counting sizeof + ceil(sizeof / __min_sub_group_size) bytes per work-item and two work-items fewer covers them.
